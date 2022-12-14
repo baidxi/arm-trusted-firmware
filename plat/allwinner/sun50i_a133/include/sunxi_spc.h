@@ -1,0 +1,7 @@
+#ifndef SUNXI_SPC_H
+#define SUNXI_SPC_H
+
+#define SUNXI_SPC_NUM_PORTS		14
+#define SUNXI_SPC_DECPORT_SET_REG(p)	(SUNXI_SPC_BASE + 0x0004 + 0x10 * (p))
+#define SUNXI_SPC_DECPORT_SET_REG(p)	(SUNXI_SPC_BASE + 0x0004 + 0x10 * (p))
+#endif
