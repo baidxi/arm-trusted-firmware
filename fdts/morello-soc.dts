@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2021-2022, Arm Limited. All rights reserved.
+ * Copyright (c) 2021-2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
 /dts-v1/;
 #include "morello.dtsi"
+#include "morello-coresight.dtsi"
 
 / {
 	model = "Arm Morello System Development Platform";
@@ -28,28 +29,28 @@
 	cpus {
 		#address-cells = <2>;
 		#size-cells = <0>;
-		cpu0@0 {
+		cpu0: cpu0@0 {
 			compatible = "arm,armv8";
 			reg = <0x0 0x0>;
 			device_type = "cpu";
 			enable-method = "psci";
 			clocks = <&scmi_dvfs 0>;
 		};
-		cpu1@100 {
+		cpu1: cpu1@100 {
 			compatible = "arm,armv8";
 			reg = <0x0 0x100>;
 			device_type = "cpu";
 			enable-method = "psci";
 			clocks = <&scmi_dvfs 0>;
 		};
-		cpu2@10000 {
+		cpu2: cpu2@10000 {
 			compatible = "arm,armv8";
 			reg = <0x0 0x10000>;
 			device_type = "cpu";
 			enable-method = "psci";
 			clocks = <&scmi_dvfs 1>;
 		};
-		cpu3@10100 {
+		cpu3: cpu3@10100 {
 			compatible = "arm,armv8";
 			reg = <0x0 0x10100>;
 			device_type = "cpu";
@@ -211,6 +212,29 @@
 		#clock-cells = <0>;
 		clock-frequency = <350000000>;
 		clock-output-names = "aclk";
+	};
+
+	gpu@2d000000 {
+		compatible = "arm,mali-bifrost";
+		reg = <0x0 0x2d000000 0x0 0x4000>;
+		interrupts =
+			<GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"gpu",
+			"job",
+			"mmu";
+		clocks = <&clk_gpu>;
+		clock-names = "clk_mali";
+		status = "okay";
+	};
+
+	clk_gpu: clk_gpu {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <650000000>;
+		clock-output-names = "clk_mali";
 	};
 
 	firmware {

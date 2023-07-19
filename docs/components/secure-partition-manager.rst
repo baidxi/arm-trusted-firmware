@@ -203,6 +203,7 @@ Sample TF-A build command line when the SPMC is located at S-EL1
 
 Sample TF-A build command line when FEAT_SEL2 architecture extension is
 implemented and the SPMC is located at S-EL2:
+
 .. code:: shell
 
     make \
@@ -220,6 +221,7 @@ implemented and the SPMC is located at S-EL2:
 
 Sample TF-A build command line when FEAT_SEL2 architecture extension is
 implemented, the SPMC is located at S-EL2, and enabling secure boot:
+
 .. code:: shell
 
     make \
@@ -461,8 +463,15 @@ A sample can be found at `[7]`_:
 - *cpus* node provide the platform topology and allows MPIDR to VMPIDR mapping.
   Note the primary core is declared first, then secondary cores are declared
   in reverse order.
-- The *memory* node provides platform information on the ranges of memory
-  available to the SPMC.
+- The *memory* nodes provide platform information on the ranges of memory
+  available for use by SPs at runtime. These ranges relate to either
+  secure or non-secure memory, depending on the *device_type* field.
+  If the field specifies "memory" the range is secure, else if it specifies
+  "ns-memory" the memory is non-secure. The system integrator must exclude
+  the memory used by other components that are not SPs, such as the monitor,
+  or the SPMC itself, the OS Kernel/Hypervisor, or other NWd VMs. The SPMC
+  limits the SP's address space such that they do not access memory outside
+  of those ranges.
 
 SPMC boot
 ~~~~~~~~~
@@ -562,7 +571,12 @@ an S-EL2 SPMC:
 - Memory regions are mapped in the SP EL1&0 Stage-2 translation regime at
   load time (or EL1&0 Stage-1 for an S-EL1 SPMC). A memory region node can
   specify RX/TX buffer regions in which case it is not necessary for an SP
-  to explicitly invoke the ``FFA_RXTX_MAP`` interface.
+  to explicitly invoke the ``FFA_RXTX_MAP`` interface. The memory referred
+  shall be contained within the memory ranges defined in SPMC manifest. The
+  NS bit in the attributes field should be consistent with the security
+  state of the range that it relates to. I.e. non-secure memory shall be
+  part of a non-secure memory range, and secure memory shall be contained
+  in a secure memory range of a given platform.
 - Device regions are mapped in the SP EL1&0 Stage-2 translation regime (or
   EL1&0 Stage-1 for an S-EL1 SPMC) as peripherals and possibly allocate
   additional resources (e.g. interrupts).
@@ -1029,6 +1043,68 @@ permits SPMD to SPMC communication and either way.
 
 This is used in particular to convey power management messages.
 
+Memory Sharing
+--------------
+
+Hafnium implements the following memory sharing interfaces:
+
+ - ``FFA_MEM_SHARE`` - for shared access between lender and borrower.
+ - ``FFA_MEM_LEND`` - borrower to obtain exclusive access, though lender
+   retains ownership of the memory.
+ - ``FFA_MEM_DONATE`` - lender permanently relinquishes ownership of memory
+   to the borrower.
+
+The ``FFA_MEM_RETRIEVE_REQ`` interface is for the borrower to request the
+memory to be mapped into its address space: for S-EL1 partitions the SPM updates
+their stage 2 translation regime; for S-EL0 partitions the SPM updates their
+stage 1 translation regime. On a successful call, the SPMC responds back with
+``FFA_MEM_RETRIEVE_RESP``.
+
+The ``FFA_MEM_RELINQUISH`` interface is for when the borrower is done with using
+a memory region.
+
+The ``FFA_MEM_RECLAIM`` interface is for the owner of the memory to reestablish
+its ownership and exclusive access to the memory shared.
+
+The memory transaction descriptors are transmitted via RX/TX buffers. In
+situations where the size of the memory transaction descriptor exceeds the
+size of the RX/TX buffers, Hafnium provides support for fragmented transmission
+of the full transaction descriptor. The ``FFA_MEM_FRAG_RX`` and ``FFA_MEM_FRAG_TX``
+interfaces are for receiving and transmitting the next fragment, respectively.
+
+If lender and borrower(s) are SPs, all memory sharing operations are supported.
+
+Hafnium also supports memory sharing operations between the normal world and the
+secure world. If there is an SP involved, the SPMC allocates data to track the
+state of the operation.
+
+The SPMC is also the designated allocator for the memory handle. The hypervisor
+or OS kernel has the possibility to rely on the SPMC to maintain the state
+of the operation, thus saving memory.
+A lender SP can only donate NS memory to a borrower from the normal world.
+
+The SPMC supports the hypervisor retrieve request, as defined by the FF-A
+v1.1 EAC0 specification, in section 16.4.3. The intent is to aid with operations
+that the hypervisor must do for a VM retriever. For example, when handling
+an FFA_MEM_RECLAIM, if the hypervisor relies on SPMC to keep the state
+of the operation, the hypervisor retrieve request can be used to obtain
+that state information, do the necessary validations, and update stage 2
+memory translation.
+
+Hafnium also supports memory lend and share targetting multiple borrowers.
+This is the case for a lender SP to multiple SPs, and for a lender VM to
+multiple endpoints (from both secure world and normal world). If there is
+at least one borrower VM, the hypervisor is in charge of managing its
+stage 2 translation on a successful memory retrieve.
+The semantics of ``FFA_MEM_DONATE`` implies ownership transmission,
+which should target only one partition.
+
+The memory share interfaces are backwards compatible with memory transaction
+descriptors from FF-A v1.0. These get translated to FF-A v1.1 descriptors for
+Hafnium's internal processing of the operation. If the FF-A version of a
+borrower is v1.0, Hafnium provides FF-A v1.0 compliant memory transaction
+descriptors on memory retrieve response.
+
 PE MMU configuration
 --------------------
 
@@ -1318,6 +1394,25 @@ A brief description of the events:
        direct request to SP2 by invoking FFA_RUN.
   - 9) SPMC resumes the pre-empted vCPU of SP2.
 
+EL3 interrupt handling
+~~~~~~~~~~~~~~~~~~~~~~
+
+In GICv3 based systems, EL3 interrupts are configured as Group0 secure
+interrupts. Execution traps to SPMC when a Group0 interrupt triggers while an
+SP is running. Further, SPMC running at S-EL2 uses FFA_EL3_INTR_HANDLE ABI to
+request EL3 platform firmware to handle a pending Group0 interrupt.
+Similarly, SPMD registers a handler with interrupt management framework to
+delegate handling of Group0 interrupt to the platform if the interrupt triggers
+in normal world.
+
+ - Platform hook
+
+   - plat_spmd_handle_group0_interrupt
+
+     SPMD provides platform hook to handle Group0 secure interrupts. In the
+     current design, SPMD expects the platform not to delegate handling to the
+     NWd (such as through SDEI) while processing Group0 interrupts.
+
 Power management
 ----------------
 
@@ -1557,4 +1652,4 @@ Client <https://developer.arm.com/documentation/den0006/d/>`__
 
 --------------
 
-*Copyright (c) 2020-2022, Arm Limited and Contributors. All rights reserved.*
+*Copyright (c) 2020-2023, Arm Limited and Contributors. All rights reserved.*
