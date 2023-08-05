@@ -275,6 +275,9 @@
 /* ID_AA64ISAR2_EL1 definitions */
 #define ID_AA64ISAR2_EL1		S3_0_C0_C6_2
 
+/* ID_AA64PFR2_EL1 definitions */
+#define ID_AA64PFR2_EL1			S3_0_C0_C4_2
+
 #define ID_AA64ISAR2_GPA3_SHIFT		U(8)
 #define ID_AA64ISAR2_GPA3_MASK		ULL(0xf)
 
@@ -401,6 +404,16 @@
 
 #define ID_AA64PFR1_EL1_RNG_TRAP_SUPPORTED	ULL(0x1)
 #define ID_AA64PFR1_EL1_RNG_TRAP_NOT_SUPPORTED	ULL(0x0)
+
+/* ID_AA64PFR2_EL1 definitions */
+#define ID_AA64PFR2_EL1_MTEPERM_SHIFT		U(0)
+#define ID_AA64PFR2_EL1_MTEPERM_MASK		ULL(0xf)
+
+#define ID_AA64PFR2_EL1_MTESTOREONLY_SHIFT	U(4)
+#define ID_AA64PFR2_EL1_MTESTOREONLY_MASK	ULL(0xf)
+
+#define ID_AA64PFR2_EL1_MTEFAR_SHIFT		U(8)
+#define ID_AA64PFR2_EL1_MTEFAR_MASK		ULL(0xf)
 
 #define VDISR_EL2				S3_4_C12_C1_1
 #define VSESR_EL2				S3_4_C5_C2_3
@@ -583,7 +596,7 @@
 #define MDCR_SBRBE_MASK		ULL(0x3)
 #define MDCR_NSTB(x)		((x) << 24)
 #define MDCR_NSTB_EL1		ULL(0x3)
-#define MDCR_NSTBE		(ULL(1) << 26)
+#define MDCR_NSTBE_BIT		(ULL(1) << 26)
 #define MDCR_MTPME_BIT		(ULL(1) << 28)
 #define MDCR_TDCC_BIT		(ULL(1) << 27)
 #define MDCR_SCCD_BIT		(ULL(1) << 23)
@@ -599,6 +612,7 @@
 #define MDCR_SPD32_ENABLE	ULL(0x3)
 #define MDCR_NSPB(x)		((x) << 12)
 #define MDCR_NSPB_EL1		ULL(0x3)
+#define MDCR_NSPBE_BIT		(ULL(1) << 11)
 #define MDCR_TDOSA_BIT		(ULL(1) << 10)
 #define MDCR_TDA_BIT		(ULL(1) << 9)
 #define MDCR_TPM_BIT		(ULL(1) << 6)

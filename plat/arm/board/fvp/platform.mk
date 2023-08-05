@@ -80,6 +80,7 @@ ENABLE_SYS_REG_TRACE_FOR_NS	:= 2
 ENABLE_FEAT_CSV2_2		:= 2
 ENABLE_FEAT_DIT			:= 2
 ENABLE_FEAT_PAN			:= 2
+ENABLE_FEAT_MTE_PERM		:= 2
 ENABLE_FEAT_VHE			:= 2
 CTX_INCLUDE_NEVE_REGS		:= 2
 ENABLE_FEAT_SEL2		:= 2
@@ -221,7 +222,8 @@ endif
 
 else
 FVP_CPU_LIBS		+=	lib/cpus/aarch32/cortex_a32.S			\
-				lib/cpus/aarch32/cortex_a57.S
+				lib/cpus/aarch32/cortex_a57.S			\
+				lib/cpus/aarch32/cortex_a53.S
 endif
 
 BL1_SOURCES		+=	drivers/arm/smmu/smmu_v3.c			\

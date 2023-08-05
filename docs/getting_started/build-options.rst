@@ -45,6 +45,12 @@ Common build options
    compiling TF-A. Its value must be a numeric, and defaults to 0. See also,
    *Armv8 Architecture Extensions* in :ref:`Firmware Design`.
 
+-  ``ARM_BL2_SP_LIST_DTS``: Path to DTS file snippet to override the hardcoded
+   SP nodes in tb_fw_config.
+
+-  ``ARM_SPMC_MANIFEST_DTS`` : path to an alternate manifest file used as the
+   SPMC Core manifest. Valid when ``SPD=spmd`` is selected.
+
 -  ``BL2``: This is an optional build option which specifies the path to BL2
    image for the ``fip`` target. In this case, the BL2 in the TF-A will not be
    built.
@@ -301,6 +307,13 @@ Common build options
    mandatory architectural feature and is enabled from v8.7 and upwards. This
    flag can take the values 0 to 2, to align  with the ``FEATURE_DETECTION``
    mechanism. Default value is ``0``.
+
+-  ``ENABLE_FEAT_MTE_PERM``: Numeric value to enable support for
+   ``FEAT_MTE_PERM``, which introduces Allocation tag access permission to
+   memory region attributes. ``FEAT_MTE_PERM`` is a optional architectural
+   feature available from v8.9 and upwards.  This flag can take the values 0 to
+   2, to align  with the ``FEATURE_DETECTION`` mechanism. Default value is
+   ``0``.
 
 -  ``ENABLE_FEAT_PAN``: Numeric value to enable the ``FEAT_PAN`` (Privileged
    Access Never) extension. ``FEAT_PAN`` adds a bit to PSTATE, generating a
@@ -714,6 +727,13 @@ Common build options
 
    This option defaults to 0.
 
+-  ``MARCH_DIRECTIVE``: used to pass a -march option from the platform build
+   options to the compiler. An example usage:
+
+   .. code:: make
+
+      MARCH_DIRECTIVE := -march=armv8.5-a
+
 -  ``NON_TRUSTED_WORLD_KEY``: This option is used when ``GENERATE_COT=1``. It
    specifies the file that contains the Non-Trusted World private key in PEM
    format. If ``SAVE_KEYS=1``, this file name will be used to save the key.
@@ -726,6 +746,10 @@ Common build options
    contents upon world switch. It can take either 0 (don't save and restore) or
    1 (do save and restore). 0 is the default. An SPD may set this to 1 if it
    wants the timer registers to be saved and restored.
+
+-  ``OPTEE_SP_FW_CONFIG``: DTC build flag to include OP-TEE as SP in
+   tb_fw_config device tree. This flag is defined only when
+   ``ARM_SPMC_MANIFEST_DTS`` manifest file name contains pattern optee_sp.
 
 -  ``OVERRIDE_LIBC``: This option allows platforms to override the default libc
    for the BL image. It can be either 0 (include) or 1 (remove). The default
@@ -935,6 +959,9 @@ Common build options
    .. note::
       When ``EL3_EXCEPTION_HANDLING`` is ``1``, ``TSP_NS_INTR_ASYNC_PREEMPT``
       must also be set to ``1``.
+
+-  ``TS_SP_FW_CONFIG``: DTC build flag to include Trusted Services (Crypto and
+   internal-trusted-storage) as SP in tb_fw_config device tree.
 
 -  ``TWED_DELAY``: Numeric value to be set in order to delay the trapping of
    WFE instruction. ``ENABLE_FEAT_TWED`` build option must be enabled to set
