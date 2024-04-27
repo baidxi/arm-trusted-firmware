@@ -62,6 +62,11 @@
 #define CACHE_WRITEBACK_GRANULE		(1 << CACHE_WRITEBACK_SHIFT)
 
 /*
+ * Define the max number of memory nodes.
+ */
+#define PLAT_MAX_MEM_NODES	128
+
+/*
  * Partition memory into secure ROM, non-secure DRAM, secure "SRAM",
  * and secure DRAM.
  */
@@ -199,7 +204,7 @@
 #define QEMU_FLASH1_BASE		0x10000000
 #define QEMU_FLASH1_SIZE		0x10000000
 
-#define PLAT_QEMU_FIP_BASE		0x00008000
+#define PLAT_QEMU_FIP_BASE		BL1_SIZE
 #define PLAT_QEMU_FIP_MAX_SIZE		0x00400000
 
 /* This is map from GIC_DIST up to last CPU (255) GIC_REDISTR */
@@ -260,11 +265,6 @@
  */
 #define PLAT_QEMU_DT_BASE		NS_DRAM0_BASE
 #define PLAT_QEMU_DT_MAX_SIZE		0x100000
-
-/*
- * System counter
- */
-#define SYS_COUNTER_FREQ_IN_TICKS	((1000 * 1000 * 1000) / 16)
 
 #if SPM_MM
 #define PLAT_QEMU_SP_IMAGE_BASE		BL_RAM_BASE

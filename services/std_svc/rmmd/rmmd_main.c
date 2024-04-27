@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2021-2024, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -17,6 +17,7 @@
 #include <common/runtime_svc.h>
 #include <context.h>
 #include <lib/el3_runtime/context_mgmt.h>
+#include <lib/el3_runtime/cpu_data.h>
 #include <lib/el3_runtime/pubsub.h>
 #include <lib/extensions/pmuv3.h>
 #include <lib/extensions/sys_reg_trace.h>
@@ -30,6 +31,7 @@
 #include <platform_def.h>
 #include <services/rmmd_svc.h>
 #include <smccc_helpers.h>
+#include <lib/extensions/sme.h>
 #include <lib/extensions/sve.h>
 #include "rmmd_initial_context.h"
 #include "rmmd_private.h"
@@ -68,7 +70,6 @@ uint64_t rmmd_rmm_sync_entry(rmmd_rmm_context_t *rmm_ctx)
 	cm_set_context(&(rmm_ctx->cpu_ctx), REALM);
 
 	/* Restore the realm context assigned above */
-	cm_el1_sysregs_context_restore(REALM);
 	cm_el2_sysregs_context_restore(REALM);
 	cm_set_next_eret_context(REALM);
 
@@ -76,12 +77,10 @@ uint64_t rmmd_rmm_sync_entry(rmmd_rmm_context_t *rmm_ctx)
 	rc = rmmd_rmm_enter(&rmm_ctx->c_rt_ctx);
 
 	/*
-	 * Save realm context. EL1 and EL2 Non-secure
-	 * contexts will be restored before exiting to
-	 * Non-secure world, therefore there is no need
-	 * to clear EL1 and EL2 context registers.
+	 * Save realm context. EL2 Non-secure context will be restored
+	 * before exiting Non-secure world, therefore there is no need
+	 * to clear EL2 context registers.
 	 */
-	cm_el1_sysregs_context_save(REALM);
 	cm_el2_sysregs_context_save(REALM);
 
 	return rc;
@@ -110,30 +109,52 @@ __dead2 void rmmd_rmm_sync_exit(uint64_t rc)
 
 static void rmm_el2_context_init(el2_sysregs_t *regs)
 {
-	regs->ctx_regs[CTX_SPSR_EL2 >> 3] = REALM_SPSR_EL2;
-	regs->ctx_regs[CTX_SCTLR_EL2 >> 3] = SCTLR_EL2_RES1;
+	write_el2_ctx_common(regs, spsr_el2, REALM_SPSR_EL2);
+	write_el2_ctx_common(regs, sctlr_el2, SCTLR_EL2_RES1);
 }
 
 /*******************************************************************************
  * Enable architecture extensions on first entry to Realm world.
  ******************************************************************************/
+
 static void manage_extensions_realm(cpu_context_t *ctx)
 {
+	pmuv3_enable(ctx);
+
+	/*
+	 * Enable access to TPIDR2_EL0 if SME/SME2 is enabled for Non Secure world.
+	 */
+	if (is_feat_sme_supported()) {
+		sme_enable(ctx);
+	}
+}
+
+static void manage_extensions_realm_per_world(void)
+{
+	cm_el3_arch_init_per_world(&per_world_context[CPU_CONTEXT_REALM]);
+
 	if (is_feat_sve_supported()) {
 	/*
 	 * Enable SVE and FPU in realm context when it is enabled for NS.
 	 * Realm manager must ensure that the SVE and FPU register
 	 * contexts are properly managed.
 	 */
-		sve_enable(ctx);
+		sve_enable_per_world(&per_world_context[CPU_CONTEXT_REALM]);
 	}
 
 	/* NS can access this but Realm shouldn't */
 	if (is_feat_sys_reg_trace_supported()) {
-		sys_reg_trace_disable(ctx);
+		sys_reg_trace_disable_per_world(&per_world_context[CPU_CONTEXT_REALM]);
 	}
 
-	pmuv3_enable(ctx);
+	/*
+	 * If SME/SME2 is supported and enabled for NS world, then disable trapping
+	 * of SME instructions for Realm world. RMM will save/restore required
+	 * registers that are shared with SVE/FPU so that Realm can use FPU or SVE.
+	 */
+	if (is_feat_sme_supported()) {
+		sme_enable_per_world(&per_world_context[CPU_CONTEXT_REALM]);
+	}
 }
 
 /*******************************************************************************
@@ -148,6 +169,8 @@ static int32_t rmm_init(void)
 
 	/* Enable architecture extensions */
 	manage_extensions_realm(&ctx->cpu_ctx);
+
+	manage_extensions_realm_per_world();
 
 	/* Initialize RMM EL2 context. */
 	rmm_el2_context_init(&ctx->cpu_ctx.el2_sysregs_ctx);
@@ -209,8 +232,10 @@ int rmmd_setup(void)
 	assert((shared_buf_size == SZ_4K) &&
 					((void *)shared_buf_base != NULL));
 
-	/* Load the boot manifest at the beginning of the shared area */
+	/* Zero out and load the boot manifest at the beginning of the share area */
 	manifest = (struct rmm_manifest *)shared_buf_base;
+	(void)memset((void *)manifest, 0, sizeof(struct rmm_manifest));
+
 	rc = plat_rmmd_load_manifest(manifest);
 	if (rc != 0) {
 		ERROR("Error loading RMM Boot Manifest (%i)\n", rc);
@@ -253,11 +278,9 @@ static uint64_t	rmmd_smc_forward(uint32_t src_sec_state,
 	cpu_context_t *ctx = cm_get_context(dst_sec_state);
 
 	/* Save incoming security state */
-	cm_el1_sysregs_context_save(src_sec_state);
 	cm_el2_sysregs_context_save(src_sec_state);
 
 	/* Restore outgoing security state */
-	cm_el1_sysregs_context_restore(dst_sec_state);
 	cm_el2_sysregs_context_restore(dst_sec_state);
 	cm_set_next_eret_context(dst_sec_state);
 
@@ -309,6 +332,14 @@ uint64_t rmmd_rmi_handler(uint32_t smc_fid, uint64_t x1, uint64_t x2,
 	 * is.
 	 */
 	if (src_sec_state == SMC_FROM_NON_SECURE) {
+		/*
+		 * If SVE hint bit is set in the flags then update the SMC
+		 * function id and pass it on to the lower EL.
+		 */
+		if (is_sve_hint_set(flags)) {
+			smc_fid |= (FUNCID_SVE_HINT_MASK <<
+				    FUNCID_SVE_HINT_SHIFT);
+		}
 		VERBOSE("RMMD: RMI call from non-secure world.\n");
 		return rmmd_smc_forward(NON_SECURE, REALM, smc_fid,
 					x1, x2, x3, x4, handle);

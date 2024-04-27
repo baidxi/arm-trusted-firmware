@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2023, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2024, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -186,15 +186,13 @@ enum ddr_type {
 #endif
 #define STM32MP_BL33_MAX_SIZE		U(0x400000)
 
-/* Define maximum page size for NAND devices */
-#define PLATFORM_MTD_MAX_PAGE_SIZE	U(0x1000)
-
 /* Define location for the MTD scratch buffer */
 #if STM32MP13
 #define STM32MP_MTD_BUFFER		(SRAM1_BASE + \
 					 SRAM1_SIZE - \
 					 PLATFORM_MTD_MAX_PAGE_SIZE)
 #endif
+
 /*******************************************************************************
  * STM32MP1 device/io map related constants (used for MMU)
  ******************************************************************************/
@@ -416,12 +414,6 @@ enum ddr_type {
 #define STM32MP_SDMMC2_BASE		U(0x58007000)
 #define STM32MP_SDMMC3_BASE		U(0x48004000)
 
-#define STM32MP_MMC_INIT_FREQ			U(400000)	/*400 KHz*/
-#define STM32MP_SD_NORMAL_SPEED_MAX_FREQ	U(25000000)	/*25 MHz*/
-#define STM32MP_SD_HIGH_SPEED_MAX_FREQ		U(50000000)	/*50 MHz*/
-#define STM32MP_EMMC_NORMAL_SPEED_MAX_FREQ	U(26000000)	/*26 MHz*/
-#define STM32MP_EMMC_HIGH_SPEED_MAX_FREQ	U(52000000)	/*52 MHz*/
-
 /*******************************************************************************
  * STM32MP1 BSEC / OTP
  ******************************************************************************/
@@ -431,24 +423,24 @@ enum ddr_type {
 #define OTP_MAX_SIZE			(STM32MP1_OTP_MAX_ID + 1U)
 
 /* OTP labels */
-#define CFG0_OTP			"cfg0_otp"
-#define PART_NUMBER_OTP			"part_number_otp"
+#define CFG0_OTP			"cfg0-otp"
+#define PART_NUMBER_OTP			"part-number-otp"
 #if STM32MP15
-#define PACKAGE_OTP			"package_otp"
+#define PACKAGE_OTP			"package-otp"
 #endif
-#define HW2_OTP				"hw2_otp"
+#define HW2_OTP				"hw2-otp"
 #if STM32MP13
-#define NAND_OTP			"cfg9_otp"
-#define NAND2_OTP			"cfg10_otp"
+#define NAND_OTP			"cfg9-otp"
+#define NAND2_OTP			"cfg10-otp"
 #endif
 #if STM32MP15
-#define NAND_OTP			"nand_otp"
+#define NAND_OTP			"nand-otp"
 #endif
-#define MONOTONIC_OTP			"monotonic_otp"
-#define UID_OTP				"uid_otp"
-#define PKH_OTP				"pkh_otp"
-#define ENCKEY_OTP			"enckey_otp"
-#define BOARD_ID_OTP			"board_id"
+#define MONOTONIC_OTP			"monotonic-otp"
+#define UID_OTP				"uid-otp"
+#define PKH_OTP				"pkh-otp"
+#define ENCKEY_OTP			"oem-enc-key"
+#define BOARD_ID_OTP			"board-id"
 
 /* OTP mask */
 /* CFG0 */
@@ -539,9 +531,6 @@ enum ddr_type {
 
 /* UID OTP */
 #define UID_WORD_NB			U(3)
-
-/* FWU configuration (max supported value is 15) */
-#define FWU_MAX_TRIAL_REBOOT		U(3)
 
 /*******************************************************************************
  * STM32MP1 TAMP
@@ -642,7 +631,7 @@ static inline uintptr_t tamp_bkpr(uint32_t idx)
 /* 3 PWR + 1 VREFBUF + 14 PMIC regulators + 1 FIXED */
 #define PLAT_NB_RDEVS			U(19)
 /* 2 FIXED */
-#define PLAT_NB_FIXED_REGS		U(2)
+#define PLAT_NB_FIXED_REGUS		U(2)
 
 /*******************************************************************************
  * Device Tree defines

@@ -67,6 +67,8 @@ LTS Maintainers
 :|G|: `bytefire`_
 :|M|: Varun Wadekar <vwadekar@nvidia.com>
 :|G|: `vwadekar`_
+:|M|: Yann Gautier <yann.gautier@st.com>
+:|G|: `Yann-lms`_
 
 .. _code owners:
 
@@ -422,6 +424,15 @@ Granule Protection Tables Library (GPT-RME)
 :|F|: lib/gpt_rme
 :|F|: include/lib/gpt_rme
 
+Firmware Handoff Library (Transfer List)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+:|M|: Raymond Mao <raymond.mao@linaro.org>
+:|G|: `raymo200915`_
+:|M|: Harrison Mutai <harrison.mutai@arm.com>
+:|G|: `harrisonmutai-arm`_
+:|F|: lib/transfer_list
+:|F|: include/lib/transfer_list.h
+
 Platform Ports
 ~~~~~~~~~~~~~~
 
@@ -501,8 +512,8 @@ Arm Rich IoT Platform ports
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 :|M|: Abdellatif El Khlifi <abdellatif.elkhlifi@arm.com>
 :|G|: `abdellatif-elkhlifi`_
-:|M|: Vishnu Banavath <vishnu.banavath@arm.com>
-:|G|: `vishnu-banavath`_
+:|M|: Xueliang Zhong <xueliang.zhong@arm.com>
+:|G|: `xueliang-zhong-arm`_
 :|F|: plat/arm/board/corstone700
 :|F|: plat/arm/board/a5ds
 :|F|: plat/arm/board/corstone1000
@@ -513,13 +524,12 @@ Arm Reference Design platform ports
 :|G|: `thomas-arm`_
 :|M|: Vijayenthiran Subramaniam <vijayenthiran.subramaniam@arm.com>
 :|G|: `vijayenthiran-arm`_
-:|F|: plat/arm/css/sgi/
-:|F|: plat/arm/board/rde1edge/
-:|F|: plat/arm/board/rdn1edge/
-:|F|: plat/arm/board/rdn2/
-:|F|: plat/arm/board/rdv1/
-:|F|: plat/arm/board/rdv1mc/
-:|F|: plat/arm/board/sgi575/
+:|F|: plat/arm/board/neoverse_rd/common
+:|F|: plat/arm/board/neoverse_rd/platform/rdn1edge/
+:|F|: plat/arm/board/neoverse_rd/platform/rdn2/
+:|F|: plat/arm/board/neoverse_rd/platform/rdv1/
+:|F|: plat/arm/board/neoverse_rd/platform/rdv1mc/
+:|F|: plat/arm/board/neoverse_rd/platform/sgi575/
 
 Arm Total Compute platform port
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -585,6 +595,20 @@ Marvell platform ports and SoC drivers
 :|F|: drivers/marvell/
 :|F|: tools/marvell/
 
+Nuvoton npcm845x platform port
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+:|M|: Hila Miranda-Kuzi <hila.miranda.kuzi1@gmail.com>
+:|G|: `hilamirandakuzi1`_
+:|M|: Margarita Glushkin <rutigl@gmail.com>
+:|G|: `rutigl`_
+:|M|: Avi Fishman <avi.fishman@nuvoton.com>
+:|G|: `avifishman`_
+:|F|: docs/plat/npcm845x.rst
+:|F|: drivers/nuvoton/
+:|F|: include/drivers/nuvoton/
+:|F|: include/plat/nuvoton/
+:|F|: plat/nuvoton/
+
 NVidia platform ports
 ^^^^^^^^^^^^^^^^^^^^^
 :|M|: Varun Wadekar <vwadekar@nvidia.com>
@@ -620,6 +644,20 @@ NXP i.MX8M platform port
 :|G|: `JackyBai`_
 :|F|: docs/plat/imx8m.rst
 :|F|: plat/imx/imx8m/
+
+NXP i.MX8ULP platform port
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+:|M|: Jacky Bai <ping.bai@nxp.com>
+:|G|: `JackyBai`_
+:|F|: docs/plat/imx8ulp.rst
+:|F|: plat/imx/imx8ulp/
+
+NXP i.MX9 platform port
+^^^^^^^^^^^^^^^^^^^^^^^^
+:|M|: Jacky Bai <ping.bai@nxp.com>
+:|G|: `JackyBai`_
+:|F|: docs/plat/imx9.rst
+:|F|: plat/imx/imx93/
 
 NXP QorIQ Layerscape common code for platform ports
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -727,8 +765,6 @@ Raspberry Pi 4 platform port
 
 Renesas rcar-gen3 platform port
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-:|M|: Jorge Ramirez-Ortiz  <jramirez@baylibre.com>
-:|G|: `ldts`_
 :|M|: Marek Vasut <marek.vasut@gmail.com>
 :|G|: `marex`_
 :|F|: docs/plat/rcar-gen3.rst
@@ -768,6 +804,7 @@ STM32MP1 platform port
 ^^^^^^^^^^^^^^^^^^^^^^
 :|M|: Yann Gautier <yann.gautier@st.com>
 :|G|: `Yann-lms`_
+:|F|: docs/plat/st/*
 :|F|: docs/plat/stm32mp1.rst
 :|F|: drivers/st/
 :|F|: fdts/stm32\*
@@ -780,6 +817,8 @@ Synquacer platform port
 ^^^^^^^^^^^^^^^^^^^^^^^
 :|M|: Sumit Garg <sumit.garg@linaro.org>
 :|G|: `b49020`_
+:|M|: Masahisa Kojima <kojima.masahisa@socionext.com>
+:|G|: `masahisak`_
 :|F|: docs/plat/synquacer.rst
 :|F|: plat/socionext/synquacer/
 
@@ -937,9 +976,9 @@ Conventional Changelog Extensions
 .. _jwerner-chromium: https://github.com/jwerner-chromium
 .. _kostapr: https://github.com/kostapr
 .. _lachitp: https://github.com/lachitp
-.. _ldts: https://github.com/ldts
 .. _marex: https://github.com/marex
 .. _masahir0y: https://github.com/masahir0y
+.. _masahisak: https://github.com/masahisak
 .. _michalsimek: https://github.com/michalsimek
 .. _mmind: https://github.com/mmind
 .. _MrVan: https://github.com/MrVan
@@ -1002,3 +1041,9 @@ Conventional Changelog Extensions
 .. _Neal-liu: https://github.com/neal-liu
 .. _amit-nagal: https://github.com/amit-nagal
 .. _Akshay-Belsare: https://github.com/Akshay-Belsare
+.. _hilamirandakuzi1: https://github.com/hilamirandakuzi1
+.. _rutigl: https://github.com/rutigl
+.. _avifishman: https://github.com/avifishman
+.. _xueliang-zhong-arm: https://github.com/xueliang-zhong-arm
+.. _raymo200915: https://github.com/raymo200915
+.. _harrisonmutai-arm: https://github.com/harrisonmutai-arm

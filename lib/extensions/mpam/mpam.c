@@ -11,14 +11,19 @@
 #include <arch_helpers.h>
 #include <lib/extensions/mpam.h>
 
-void mpam_init_el3(void)
+void mpam_enable_per_world(per_world_context_t *per_world_ctx)
 {
+	u_register_t mpam3_el3;
+
 	/*
 	 * Enable MPAM, and disable trapping to EL3 when lower ELs access their
-	 * own MPAM registers.
+	 * own MPAM registers
 	 */
-	write_mpam3_el3(MPAM3_EL3_MPAMEN_BIT);
+	mpam3_el3 = per_world_ctx->ctx_mpam3_el3;
+	mpam3_el3 = (mpam3_el3 | MPAM3_EL3_MPAMEN_BIT) &
+				~(MPAM3_EL3_TRAPLOWER_BIT);
 
+	per_world_ctx->ctx_mpam3_el3 = mpam3_el3;
 }
 
 /*

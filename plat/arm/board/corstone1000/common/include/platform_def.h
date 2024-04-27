@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2021-2024, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -10,14 +10,12 @@
 #include <common/tbbr/tbbr_img_def.h>
 #include <lib/utils_def.h>
 #include <lib/xlat_tables/xlat_tables_defs.h>
+#include <plat/arm/board/common/rotpk/rotpk_def.h>
 #include <plat/arm/board/common/v2m_def.h>
 #include <plat/arm/common/arm_spm_def.h>
 #include <plat/arm/common/smccc_def.h>
 #include <plat/common/common_def.h>
 #include <plat/arm/soc/common/soc_css_def.h>
-
-#define ARM_ROTPK_HEADER_LEN		19
-#define ARM_ROTPK_HASH_LEN		32
 
 /* Special value used to verify platform parameters from BL2 to BL31 */
 #define ARM_BL31_PLAT_PARAM_VAL		ULL(0x0f1e2d3c4b5a6978)
@@ -173,16 +171,15 @@
 
 /* NOR Flash */
 
-#define PLAT_ARM_BOOT_BANK_FLAG		UL(0x08002000)
-#define PLAT_ARM_FIP_BASE_BANK0		UL(0x081EF000)
-#define PLAT_ARM_FIP_BASE_BANK1		UL(0x0916F000)
-#define PLAT_ARM_FIP_MAX_SIZE		UL(0x1ff000)  /* 1.996 MB */
-
 #define PLAT_ARM_NVM_BASE		V2M_FLASH0_BASE
 #define PLAT_ARM_NVM_SIZE		(SZ_32M)  /* 32 MB */
-
-#define PLAT_ARM_FLASH_IMAGE_BASE	PLAT_ARM_FIP_BASE_BANK0
+#define PLAT_ARM_FIP_MAX_SIZE		UL(0x1ff000)  /* 1.996 MB */
+#define PLAT_ARM_FLASH_IMAGE_BASE	UL(0x08000000)
 #define PLAT_ARM_FLASH_IMAGE_MAX_SIZE	PLAT_ARM_FIP_MAX_SIZE
+#define PLAT_ARM_FIP_OFFSET_IN_GPT	(0x86000)
+
+/* FIP Information */
+#define FIP_SIGNATURE_AREA_SIZE         (0x1000)      /* 4 KB */
 
 /*
  * Some data must be aligned on the biggest cache line size in the platform.

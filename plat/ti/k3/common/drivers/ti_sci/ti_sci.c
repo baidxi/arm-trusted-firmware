@@ -2,7 +2,7 @@
  * Texas Instruments System Control Interface Driver
  *   Based on Linux and U-Boot implementation
  *
- * Copyright (C) 2018-2022 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2018-2024 Texas Instruments Incorporated - https://www.ti.com/
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -155,14 +155,14 @@ static int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 	ret = k3_sec_proxy_clear_rx_thread(SP_RESPONSE);
 	if (ret) {
 		ERROR("Could not clear response queue (%d)\n", ret);
-		return ret;
+		goto unlock;
 	}
 
 	/* Send the message */
 	ret = k3_sec_proxy_send(SP_HIGH_PRIORITY, tx_msg);
 	if (ret) {
 		ERROR("Message sending failed (%d)\n", ret);
-		return ret;
+		goto unlock;
 	}
 
 	/* Get the response if requested */
@@ -170,13 +170,14 @@ static int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 		ret = ti_sci_get_response(rx_msg, SP_RESPONSE);
 		if (ret != 0U) {
 			ERROR("Failed to get response (%d)\n", ret);
-			return ret;
+			goto unlock;
 		}
 	}
 
+unlock:
 	bakery_lock_release(&ti_sci_xfer_lock);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -184,17 +185,20 @@ static int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
  *
  * Updates the SCI information in the internal data structure.
  *
+ * @version: Structure containing the version info
+ *
  * Return: 0 if all goes well, else appropriate error message
  */
-int ti_sci_get_revision(struct ti_sci_msg_resp_version *rev_info)
+int ti_sci_get_revision(struct ti_sci_msg_version *version)
 {
+	struct ti_sci_msg_resp_version rev_info;
 	struct ti_sci_msg_hdr hdr;
 	struct ti_sci_xfer xfer;
 	int ret;
 
 	ret = ti_sci_setup_one_xfer(TI_SCI_MSG_VERSION, 0x0,
 				    &hdr, sizeof(hdr),
-				    rev_info, sizeof(*rev_info),
+				    &rev_info, sizeof(rev_info),
 				    &xfer);
 	if (ret) {
 		ERROR("Message alloc failed (%d)\n", ret);
@@ -206,6 +210,50 @@ int ti_sci_get_revision(struct ti_sci_msg_resp_version *rev_info)
 		ERROR("Transfer send failed (%d)\n", ret);
 		return ret;
 	}
+
+	memcpy(version->firmware_description, rev_info.firmware_description,
+		sizeof(rev_info.firmware_description));
+	version->abi_major = rev_info.abi_major;
+	version->abi_minor = rev_info.abi_minor;
+	version->firmware_revision = rev_info.firmware_revision;
+	version->sub_version = rev_info.sub_version;
+	version->patch_version = rev_info.patch_version;
+
+	return 0;
+}
+
+/**
+ * ti_sci_query_fw_caps() - Get the FW/SoC capabilities
+ * @handle:		Pointer to TI SCI handle
+ * @fw_caps:		Each bit in fw_caps indicating one FW/SOC capability
+ *
+ * Return: 0 if all went well, else returns appropriate error value.
+ */
+int ti_sci_query_fw_caps(uint64_t *fw_caps)
+{
+	struct ti_sci_msg_hdr req;
+	struct ti_sci_msg_resp_query_fw_caps resp;
+
+	struct ti_sci_xfer xfer;
+	int ret;
+
+	ret = ti_sci_setup_one_xfer(TI_SCI_MSG_QUERY_FW_CAPS, 0,
+				    &req, sizeof(req),
+				    &resp, sizeof(resp),
+				    &xfer);
+	if (ret != 0U) {
+		ERROR("Message alloc failed (%d)\n", ret);
+		return ret;
+	}
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret != 0U) {
+		ERROR("Transfer send failed (%d)\n", ret);
+		return ret;
+	}
+
+	if (fw_caps)
+		*fw_caps = resp.fw_caps;
 
 	return 0;
 }
@@ -413,7 +461,7 @@ int ti_sci_device_put_no_wait(uint32_t id)
 	struct ti_sci_xfer xfer;
 	int ret;
 
-	ret = ti_sci_setup_one_xfer(TI_SCI_MSG_GET_DEVICE_STATE, 0,
+	ret = ti_sci_setup_one_xfer(TI_SCI_MSG_SET_DEVICE_STATE, 0,
 				    &req, sizeof(req),
 				    NULL, 0,
 				    &xfer);
@@ -1389,7 +1437,7 @@ int ti_sci_proc_set_boot_ctrl_no_wait(uint8_t proc_id,
 	struct ti_sci_xfer xfer;
 	int ret;
 
-	ret = ti_sci_setup_one_xfer(TI_SCI_MSG_GET_DEVICE_STATE, 0,
+	ret = ti_sci_setup_one_xfer(TISCI_MSG_SET_PROC_BOOT_CTRL, 0,
 				    &req, sizeof(req),
 				    NULL, 0,
 				    &xfer);
@@ -1623,7 +1671,7 @@ int ti_sci_proc_wait_boot_status_no_wait(uint8_t proc_id,
 	struct ti_sci_xfer xfer;
 	int ret;
 
-	ret = ti_sci_setup_one_xfer(TI_SCI_MSG_GET_DEVICE_STATE, 0,
+	ret = ti_sci_setup_one_xfer(TISCI_MSG_WAIT_PROC_BOOT_STATUS, 0,
 				    &req, sizeof(req),
 				    NULL, 0,
 				    &xfer);
@@ -1669,7 +1717,7 @@ int ti_sci_enter_sleep(uint8_t proc_id,
 	struct ti_sci_xfer xfer;
 	int ret;
 
-	ret = ti_sci_setup_one_xfer(TI_SCI_MSG_GET_DEVICE_STATE, 0,
+	ret = ti_sci_setup_one_xfer(TI_SCI_MSG_ENTER_SLEEP, 0,
 				    &req, sizeof(req),
 				    NULL, 0,
 				    &xfer);
@@ -1689,30 +1737,6 @@ int ti_sci_enter_sleep(uint8_t proc_id,
 		ERROR("Transfer send failed (%d)\n", ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-/**
- * ti_sci_init() - Basic initialization
- *
- * Return: 0 if all goes well, else appropriate error message
- */
-int ti_sci_init(void)
-{
-	struct ti_sci_msg_resp_version rev_info;
-	int ret;
-
-	ret = ti_sci_get_revision(&rev_info);
-	if (ret) {
-		ERROR("Unable to communicate with control firmware (%d)\n", ret);
-		return ret;
-	}
-
-	INFO("SYSFW ABI: %d.%d (firmware rev 0x%04x '%s')\n",
-	     rev_info.abi_major, rev_info.abi_minor,
-	     rev_info.firmware_revision,
-	     rev_info.firmware_description);
 
 	return 0;
 }

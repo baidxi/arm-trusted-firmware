@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2023, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2024, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -113,7 +113,11 @@ bool stm32mp_lock_available(void)
 	const uint32_t c_m_bits = SCTLR_M_BIT | SCTLR_C_BIT;
 
 	/* The spinlocks are used only when MMU and data cache are enabled */
+#ifdef __aarch64__
+	return (read_sctlr_el3() & c_m_bits) == c_m_bits;
+#else
 	return (read_sctlr() & c_m_bits) == c_m_bits;
+#endif
 }
 
 int stm32mp_map_ddr_non_cacheable(void)
@@ -164,9 +168,9 @@ int stm32_get_otp_value_from_idx(const uint32_t otp_idx, uint32_t *otp_val)
 	assert(otp_val != NULL);
 
 #if defined(IMAGE_BL2)
-	ret = bsec_shadow_read_otp(otp_val, otp_idx);
-#elif defined(IMAGE_BL32)
-	ret = bsec_read_otp(otp_val, otp_idx);
+	ret = stm32_otp_shadow_read(otp_val, otp_idx);
+#elif defined(IMAGE_BL31) || defined(IMAGE_BL32)
+	ret = stm32_otp_read(otp_val, otp_idx);
 #else
 #error "Not supported"
 #endif

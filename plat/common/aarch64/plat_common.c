@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2024, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -11,7 +11,7 @@
 #include <arch_helpers.h>
 #include <common/debug.h>
 #include <drivers/console.h>
-#if RAS_FFH_SUPPORT
+#if ENABLE_FEAT_RAS
 #include <lib/extensions/ras.h>
 #endif
 #include <lib/xlat_tables/xlat_mmu_helpers.h>
@@ -29,10 +29,13 @@
 #pragma weak plat_sdei_validate_entry_point
 #endif
 
+#if FFH_SUPPORT
 #pragma weak plat_ea_handler = plat_default_ea_handler
+#endif
 
 void bl31_plat_runtime_setup(void)
 {
+	console_flush();
 	console_switch_state(CONSOLE_FLAG_RUNTIME);
 }
 
@@ -69,19 +72,27 @@ int plat_sdei_validate_entry_point(uintptr_t ep, unsigned int client_mode)
 
 const char *get_el_str(unsigned int el)
 {
-	if (el == MODE_EL3) {
+	switch (el) {
+	case MODE_EL3:
 		return "EL3";
-	} else if (el == MODE_EL2) {
+	case MODE_EL2:
 		return "EL2";
+	case MODE_EL1:
+		return "EL1";
+	case MODE_EL0:
+		return "EL0";
+	default:
+		assert(false);
+		return NULL;
 	}
-	return "EL1";
 }
 
+#if FFH_SUPPORT
 /* Handler for External Aborts from lower EL including RAS errors */
 void plat_default_ea_handler(unsigned int ea_reason, uint64_t syndrome, void *cookie,
 		void *handle, uint64_t flags)
 {
-#if RAS_FFH_SUPPORT
+#if ENABLE_FEAT_RAS
 	/* Call RAS EA handler */
 	int handled = ras_ea_handler(ea_reason, syndrome, cookie, handle, flags);
 	if (handled != 0)
@@ -99,3 +110,4 @@ void plat_default_ea_handler(unsigned int ea_reason, uint64_t syndrome, void *co
 	 */
 	lower_el_panic();
 }
+#endif

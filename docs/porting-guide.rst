@@ -319,13 +319,6 @@ also be defined:
    Firmware Update (FWU) certificate identifier, used by NS_BL1U to load the
    FWU content certificate.
 
--  **#define : PLAT_CRYPTOCELL_BASE**
-
-   This defines the base address of Arm® TrustZone® CryptoCell and must be
-   defined if CryptoCell crypto driver is used for Trusted Board Boot. For
-   capable Arm platforms, this driver is used if ``ARM_CRYPTOCELL_INTEG`` is
-   set.
-
 If the AP Firmware Updater Configuration image, BL2U is used, the following
 must also be defined:
 
@@ -591,32 +584,32 @@ configuration must be performed:
 If the platform port uses the Arm® Ethos™-N NPU driver with TZMP1 support
 enabled, the following constants and configuration must also be defined:
 
-- **ARM_ETHOSN_NPU_PROT_FW_NSAID**
+- **ETHOSN_NPU_PROT_FW_NSAID**
 
   Defines the Non-secure Access IDentity (NSAID) that the NPU shall use to
   access the protected memory that contains the NPU's firmware.
 
-- **ARM_ETHOSN_NPU_PROT_DATA_RW_NSAID**
+- **ETHOSN_NPU_PROT_DATA_RW_NSAID**
 
   Defines the Non-secure Access IDentity (NSAID) that the NPU shall use for
   read/write access to the protected memory that contains inference data.
 
-- **ARM_ETHOSN_NPU_PROT_DATA_RO_NSAID**
+- **ETHOSN_NPU_PROT_DATA_RO_NSAID**
 
   Defines the Non-secure Access IDentity (NSAID) that the NPU shall use for
   read-only access to the protected memory that contains inference data.
 
-- **ARM_ETHOSN_NPU_NS_RW_DATA_NSAID**
+- **ETHOSN_NPU_NS_RW_DATA_NSAID**
 
   Defines the Non-secure Access IDentity (NSAID) that the NPU shall use for
   read/write access to the non-protected memory.
 
-- **ARM_ETHOSN_NPU_NS_RO_DATA_NSAID**
+- **ETHOSN_NPU_NS_RO_DATA_NSAID**
 
   Defines the Non-secure Access IDentity (NSAID) that the NPU shall use for
   read-only access to the non-protected memory.
 
-- **ARM_ETHOSN_NPU_FW_IMAGE_BASE** and **ARM_ETHOSN_NPU_FW_IMAGE_LIMIT**
+- **ETHOSN_NPU_FW_IMAGE_BASE** and **ETHOSN_NPU_FW_IMAGE_LIMIT**
 
   Defines the physical address range that the NPU's firmware will be loaded
   into and executed from.
@@ -634,10 +627,10 @@ enabled, the following constants and configuration must also be defined:
 - Add MMU mappings such that:
 
  - BL2 can write the NPU firmware into the region defined by
-   ``ARM_ETHOSN_NPU_FW_IMAGE_BASE`` and ``ARM_ETHOSN_NPU_FW_IMAGE_LIMIT``
+   ``ETHOSN_NPU_FW_IMAGE_BASE`` and ``ETHOSN_NPU_FW_IMAGE_LIMIT``
  - BL31 (SiP service) can read the NPU firmware from the same region
 
-- Add the firmware image ID ``ARM_ETHOSN_NPU_FW_IMAGE_ID`` to the list of images
+- Add the firmware image ID ``ETHOSN_NPU_FW_IMAGE_ID`` to the list of images
   loaded by BL2.
 
 Please see the reference implementation code for the Juno platform as an example.
@@ -3298,10 +3291,10 @@ Function : plat_ea_handler
     Argument : uint64_t
     Return   : void
 
-This function is invoked by the RAS framework for the platform to handle an
-External Abort received at EL3. The intention of the function is to attempt to
-resolve the cause of External Abort and return; if that's not possible, to
-initiate orderly shutdown of the system.
+This function is invoked by the runtime exception handling framework for the
+platform to handle an External Abort received at EL3. The intention of the
+function is to attempt to resolve the cause of External Abort and return;
+if that's not possible then an orderly shutdown of the system is initiated.
 
 The first parameter (``int ea_reason``) indicates the reason for External Abort.
 Its value is one of ``ERROR_EA_*`` constants defined in ``ea_handle.h``.
@@ -3316,13 +3309,8 @@ The third parameter (``void *cookie``) is unused for now. The fourth parameter
 (``uint64_t flags``) indicates the preempted security state. These parameters
 are received from the top-level exception handler.
 
-If ``RAS_FFH_SUPPORT`` is set to ``1``, the default implementation of this
-function iterates through RAS handlers registered by the platform. If any of the
-RAS handlers resolve the External Abort, no further action is taken.
-
-If ``RAS_FFH_SUPPORT`` is set to ``0``, or if none of the platform RAS handlers
-could resolve the External Abort, the default implementation prints an error
-message, and panics.
+This function must be implemented if a platform expects Firmware First handling
+of External Aborts.
 
 Function : plat_handle_uncontainable_ea
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3462,6 +3450,15 @@ build system.
    option of excluding the BL33 image in the ``fip`` image by defining this flag
    to ``no``. If any of the options ``EL3_PAYLOAD_BASE`` or ``PRELOADED_BL33_BASE``
    are used, this flag will be set to ``no`` automatically.
+
+-  **ARM_ARCH_MAJOR and ARM_ARCH_MINOR**
+   By default, ARM_ARCH_MAJOR.ARM_ARCH_MINOR is set to 8.0 in ``defaults.mk``,
+   if the platform makefile/build defines or uses the correct ARM_ARCH_MAJOR and
+   ARM_ARCH_MINOR then mandatory Architectural features available for that Arch
+   version will be enabled by default and any optional Arch feature supported by
+   the Architecture and available in TF-A can be enabled from platform specific
+   makefile. Look up to ``arch_features.mk`` for details pertaining to mandatory
+   and optional Arch specific features.
 
 Platform include paths
 ----------------------

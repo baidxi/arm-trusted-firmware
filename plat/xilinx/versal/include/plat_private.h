@@ -17,11 +17,12 @@ typedef struct versal_intr_info_type_el3 {
 	interrupt_type_handler_t handler;
 } versal_intr_info_type_el3_t;
 
+uint32_t get_uart_clk(void);
 void versal_config_setup(void);
 
-const mmap_region_t *plat_versal_get_mmap(void);
+const mmap_region_t *plat_get_mmap(void);
 
-extern uint32_t platform_id, platform_version;
+extern uint32_t cpu_clock, platform_id, platform_version;
 
 void board_detection(void);
 void plat_versal_gic_driver_init(void);

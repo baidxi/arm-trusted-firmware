@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2024, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -32,12 +32,12 @@
 #define PLATFORM_CORE_COUNT		(JUNO_CLUSTER0_CORE_COUNT + \
 					JUNO_CLUSTER1_CORE_COUNT)
 
-/* Cryptocell HW Base address */
-#define PLAT_CRYPTOCELL_BASE		UL(0x60050000)
-
 /*
  * Other platform porting definitions are provided by included headers
  */
+
+/* Define memory configuration for device tree files. */
+#define PLAT_ARM_HW_CONFIG_SIZE			U(0x8000)
 
 /*
  * Required ARM standard platform porting definitions
@@ -249,12 +249,14 @@
 /* MHU related constants */
 #define PLAT_CSS_MHU_BASE		UL(0x2b1f0000)
 
+#if CSS_USE_SCMI_SDS_DRIVER
+/* Index of SDS region used in the communication between AP and SCP */
+#define SDS_SCP_AP_REGION_ID			U(0)
+#else
 /*
  * Base address of the first memory region used for communication between AP
  * and SCP. Used by the BOM and SCPI protocols.
- */
-#if !CSS_USE_SCMI_SDS_DRIVER
-/*
+ *
  * Note that this is located at the same address as SCP_BOOT_CFG_ADDR, which
  * means the SCP/AP configuration data gets overwritten when the AP initiates
  * communication with the SCP. The configuration data is expected to be a
@@ -264,7 +266,7 @@
 #define PLAT_CSS_SCP_COM_SHARED_MEM_BASE	(ARM_TRUSTED_SRAM_BASE + UL(0x80))
 #define PLAT_CSS_PRIMARY_CPU_SHIFT		8
 #define PLAT_CSS_PRIMARY_CPU_BIT_WIDTH		4
-#endif
+#endif /* CSS_USE_SCMI_SDS_DRIVER */
 
 /*
  * SCP_BL2 uses up whatever remaining space is available as it is loaded before
@@ -327,15 +329,15 @@
 
 /* Protected NSAIDs and memory regions for the Arm(R) Ethos(TM)-N NPU driver */
 #ifdef JUNO_ETHOSN_TZMP1
-#define ARM_ETHOSN_NPU_PROT_FW_NSAID		JUNO_ETHOSN_TZC400_NSAID_FW_PROT
-#define ARM_ETHOSN_NPU_PROT_RW_DATA_NSAID	JUNO_ETHOSN_TZC400_NSAID_DATA_RW_PROT
-#define ARM_ETHOSN_NPU_PROT_RO_DATA_NSAID	JUNO_ETHOSN_TZC400_NSAID_DATA_RO_PROT
+#define ETHOSN_NPU_PROT_FW_NSAID		JUNO_ETHOSN_TZC400_NSAID_FW_PROT
+#define ETHOSN_NPU_PROT_RW_DATA_NSAID		JUNO_ETHOSN_TZC400_NSAID_DATA_RW_PROT
+#define ETHOSN_NPU_PROT_RO_DATA_NSAID		JUNO_ETHOSN_TZC400_NSAID_DATA_RO_PROT
 
-#define ARM_ETHOSN_NPU_NS_RW_DATA_NSAID		JUNO_ETHOSN_TZC400_NSAID_DATA_RW_NS
-#define ARM_ETHOSN_NPU_NS_RO_DATA_NSAID		JUNO_ETHOSN_TZC400_NSAID_DATA_RO_NS
+#define ETHOSN_NPU_NS_RW_DATA_NSAID		JUNO_ETHOSN_TZC400_NSAID_DATA_RW_NS
+#define ETHOSN_NPU_NS_RO_DATA_NSAID		JUNO_ETHOSN_TZC400_NSAID_DATA_RO_NS
 
-#define ARM_ETHOSN_NPU_FW_IMAGE_BASE		JUNO_ETHOSN_FW_TZC_PROT_DRAM2_BASE
-#define ARM_ETHOSN_NPU_FW_IMAGE_LIMIT \
+#define ETHOSN_NPU_FW_IMAGE_BASE		JUNO_ETHOSN_FW_TZC_PROT_DRAM2_BASE
+#define ETHOSN_NPU_FW_IMAGE_LIMIT \
 	(JUNO_ETHOSN_FW_TZC_PROT_DRAM2_BASE + JUNO_ETHOSN_FW_TZC_PROT_DRAM2_SIZE)
 #endif
 

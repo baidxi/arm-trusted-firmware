@@ -90,25 +90,6 @@ Arm Platform Build Options
    of the translation tables library instead of version 2. It is set to 0 by
    default, which selects version 2.
 
--  ``ARM_CRYPTOCELL_INTEG`` : bool option to enable TF-A to invoke Arm®
-   TrustZone® CryptoCell functionality for Trusted Board Boot on capable Arm
-   platforms. If this option is specified, then the path to the CryptoCell
-   SBROM library must be specified via ``CCSBROM_LIB_PATH`` flag.
-
--  ``ARM_ETHOSN_NPU_DRIVER``: boolean option to enable a SiP service that can
-   configure an Arm® Ethos™-N NPU. To use this service the target platform's
-   ``HW_CONFIG`` must include the device tree nodes for the NPU. Currently, only
-   the Arm Juno platform has this included in its ``HW_CONFIG`` and the platform
-   only loads the ``HW_CONFIG`` in AArch64 builds. Default is 0.
-
--  ``ARM_ETHOSN_NPU_TZMP1``: boolean option to enable TZMP1 support for the
-   Arm® Ethos™-N NPU. Requires ``ARM_ETHOSN_NPU_DRIVER`` and
-   ``TRUSTED_BOARD_BOOT`` to be enabled.
-
--  ``ARM_ETHOSN_NPU_FW``: location of the NPU firmware binary
-   (```ethosn.bin```). This firmware image will be included in the FIP and
-   loaded at runtime.
-
 -  ``ARM_GPT_SUPPORT``: Enable GPT parser to get the entry address and length of
    the various partitions present in the GPT image. This support is available
    only for the BL2 component, and it is disabled by default.
@@ -140,17 +121,6 @@ Arm CSS Platform-Specific Build Options
    management operations and for SCP RAM Firmware transfer. If this option
    is set to 1, then SCMI/SDS drivers will be used. Default is 0.
 
- - ``CSS_SGI_CHIP_COUNT``: Configures the number of chips on a SGI/RD platform
-   which supports multi-chip operation. If ``CSS_SGI_CHIP_COUNT`` is set to any
-   valid value greater than 1, the platform code performs required configuration
-   to support multi-chip operation.
-
-- ``CSS_SGI_PLATFORM_VARIANT``: Selects the variant of a SGI/RD platform. A
-    particular SGI/RD platform may have multiple variants which may differ in
-    core count, cluster count or other peripherals. This build option is used
-    to select the appropriate platform variant for the build. The range of
-    valid values is platform specific.
-
 - ``CSS_SYSTEM_GRACEFUL_RESET``: Build option to enable graceful powerdown of
    CPU core on reset. This build option can be used on CSS platforms that
    require all the CPUs to execute the CPU specific power down sequence to
@@ -171,8 +141,22 @@ Arm Juno Build Options
    AArch64 and facilitates the loading of ``SP_MIN`` and BL33 as AArch32 executable
    images.
 
+Arm Neoverse RD Platform Build Options
+--------------------------------------
+
+ - ``NRD_CHIP_COUNT``: Configures the number of chips on a Neoverse RD platform
+   which supports multi-chip operation. If ``NRD_CHIP_COUNT`` is set to any
+   valid value greater than 1, the platform code performs required configuration
+   to support multi-chip operation.
+
+- ``NRD_PLATFORM_VARIANT``: Selects the variant of a Neoverse RD platform. A
+  particular Neoverse RD platform may have multiple variants which may differ in
+  core count, cluster count or other peripherals. This build option is used to
+  select the appropriate platform variant for the build. The range of valid
+  values is platform specific.
+
 --------------
 
 .. |FIP in a GPT image| image:: ../../resources/diagrams/FIP_in_a_GPT_image.png
 
-*Copyright (c) 2019-2023, Arm Limited. All rights reserved.*
+*Copyright (c) 2019-2024, Arm Limited. All rights reserved.*

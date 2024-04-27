@@ -130,6 +130,12 @@ convention:
    -  For other BL3x images, if the firmware configuration file is loaded by
       BL2, then its address is passed in ``arg0`` and if HW_CONFIG is loaded
       then its address is passed in ``arg1``.
+   -  In case SPMC_AT_EL3 is enabled, populate the BL32 image base, size and max
+      limit in the entry point information, since there is no platform function
+      to retrieve these in generic code. We choose ``arg2``, ``arg3`` and
+      ``arg4`` since the generic code uses ``arg1`` for stashing the SP manifest
+      size. The SPMC setup uses these arguments to update SP manifest with
+      actual SP's base address and it size.
    -  In case of the Arm FVP platform, FW_CONFIG address passed in ``arg1`` to
       BL31/SP_MIN, and the SOC_FW_CONFIG and HW_CONFIG details are retrieved
       from FW_CONFIG device tree.
@@ -639,6 +645,35 @@ on entry, these should be enabled during ``bl31_plat_arch_setup()``.
 Data structures used in the BL31 cold boot interface
 ''''''''''''''''''''''''''''''''''''''''''''''''''''
 
+In the cold boot flow, ``entry_point_info`` is used to represent the execution
+state of an image; that is, the state of general purpose registers, PC, and
+SPSR.
+
+There are two variants of this structure, for AArch64:
+
+.. code:: c
+
+   typedef struct entry_point_info {
+        param_header_t h;
+        uintptr_t pc;
+        uint32_t spsr;
+
+        aapcs64_params_t args;
+   }
+
+and, AArch32:
+
+.. code:: c
+
+   typedef struct entry_point_info {
+      param_header_t h;
+      uintptr_t pc;
+      uint32_t spsr;
+
+      uintptr_t lr_svc;
+      aapcs32_params_t args;
+   } entry_point_info_t;
+
 These structures are designed to support compatibility and independent
 evolution of the structures and the firmware images. For example, a version of
 BL31 that can interpret the BL3x image information from different versions of
@@ -656,13 +691,17 @@ BL31 to detect which information is present and respond appropriately. The
         uint8_t type;       /* type of the structure */
         uint8_t version;    /* version of this structure */
         uint16_t size;      /* size of this structure in bytes */
-        uint32_t attr;      /* attributes: unused bits SBZ */
+        uint32_t attr;      /* attributes */
     } param_header_t;
 
-The structures using this format are ``entry_point_info``, ``image_info`` and
-``bl31_params``. The code that allocates and populates these structures must set
-the header fields appropriately, and the ``SET_PARAM_HEAD()`` a macro is defined
-to simplify this action.
+In `entry_point_info`, Bits 0 and 5 of ``attr`` field are used to encode the
+security state; in other words, whether the image is to be executed in Secure,
+Non-Secure, or Realm mode.
+
+Other structures using this format are ``image_info`` and ``bl31_params``. The
+code that allocates and populates these structures must set the header fields
+appropriately, the ``SET_PARAM_HEAD()`` macro is defined to simplify this
+action.
 
 Required CPU state for BL31 Warm boot initialization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1117,6 +1156,65 @@ returning through EL3 and running the non-trusted firmware (BL33):
    to the BL32 initialization function. On return from this function,
    ``bl31_main()`` will set up the return to the normal world firmware BL33 and
    continue the boot process in the normal world.
+
+Exception handling in BL31
+--------------------------
+
+When exception occurs, PE must execute handler corresponding to exception. The
+location in memory where the handler is stored is called the exception vector.
+For ARM architecture, exception vectors are stored in a table, called the exception
+vector table.
+
+Each EL (except EL0) has its own vector table, VBAR_ELn register stores the base
+of vector table. Refer to `AArch64 exception vector table`_
+
+Current EL with SP_EL0
+~~~~~~~~~~~~~~~~~~~~~~
+
+-  Sync exception : Not expected except for BRK instruction, its debugging tool which
+   a programmer may place at specific points in a program, to check the state of
+   processor flags at these points in the code.
+
+-  IRQ/FIQ : Unexpected exception, panic
+
+-  SError : "plat_handle_el3_ea", defaults to panic
+
+Current EL with SP_ELx
+~~~~~~~~~~~~~~~~~~~~~~
+
+-  Sync exception : Unexpected exception, panic
+
+-  IRQ/FIQ : Unexpected exception, panic
+
+-  SError : "plat_handle_el3_ea" Except for special handling of lower EL's SError exception
+   which gets triggered in EL3 when PSTATE.A is unmasked. Its only applicable when lower
+   EL's EA is routed to EL3 (FFH_SUPPORT=1).
+
+Lower EL Exceptions
+~~~~~~~~~~~~~~~~~~~
+
+Applies to all the exceptions in both AArch64/AArch32 mode of lower EL.
+
+Before handling any lower EL exception, we synchronize the errors at EL3 entry to ensure
+that any errors pertaining to lower EL is isolated/identified. If we continue without
+identifying these errors early on then these errors will trigger in EL3 (as SError from
+current EL) any time after PSTATE.A is unmasked. This is wrong because the error originated
+in lower EL but exception happened in EL3.
+
+To solve this problem, synchronize the errors at EL3 entry and check for any pending
+errors (async EA). If there is no pending error then continue with original exception.
+If there is a pending error then, handle them based on routing model of EA's. Refer to
+:ref:`Reliability, Availability, and Serviceability (RAS) Extensions` for details about
+routing models.
+
+-  KFH : Reflect it back to lower EL using **reflect_pending_async_ea_to_lower_el()**
+
+-  FFH : Handle the synchronized error first using **handle_pending_async_ea()** after
+   that continue with original exception. It is the only scenario where EL3 is capable
+   of doing nested exception handling.
+
+After synchronizing and handling lower EL SErrors, unmask EA (PSTATE.A) to ensure
+that any further EA's caused by EL3 are caught.
 
 Crash Reporting in BL31
 -----------------------
@@ -2702,13 +2800,11 @@ Armv8.5-A
 -  Branch Target Identification feature is selected by ``BRANCH_PROTECTION``
    option set to 1. This option defaults to 0.
 
--  Memory Tagging Extension feature is unconditionally enabled for both worlds
-   (at EL0 and S-EL0) if it is only supported at EL0. If instead it is
-   implemented at all ELs, it is unconditionally enabled for only the normal
-   world. To enable it for the secure world as well, the build option
-   ``CTX_INCLUDE_MTE_REGS`` is required. If the hardware does not implement
-   MTE support at all, it is always disabled, no matter what build options
-   are used.
+-  Memory Tagging Extension feature has few variants but not all of them require
+   enablement from EL3 to be used at lower EL. e.g. Memory tagging only at
+   EL0(MTE) does not require EL3 configuration however memory tagging at
+   EL2/EL1 (MTE2) does require EL3 enablement and we need to set this option
+   ``ENABLE_FEAT_MTE2`` to 1. This option defaults to 0.
 
 Armv7-A
 ~~~~~~~
@@ -2795,13 +2891,14 @@ kernel at boot time. These can be found in the ``fdts`` directory.
 
 --------------
 
-*Copyright (c) 2013-2023, Arm Limited and Contributors. All rights reserved.*
+*Copyright (c) 2013-2024, Arm Limited and Contributors. All rights reserved.*
 
 .. _SMCCC: https://developer.arm.com/docs/den0028/latest
 .. _PSCI: https://developer.arm.com/documentation/den0022/latest/
 .. _Arm ARM: https://developer.arm.com/docs/ddi0487/latest
 .. _SMC Calling Convention: https://developer.arm.com/docs/den0028/latest
-.. _Trusted Board Boot Requirements CLIENT (TBBR-CLIENT) Armv8-A (ARM DEN0006D): https://developer.arm.com/docs/den0006/latest/trusted-board-boot-requirements-client-tbbr-client-armv8-a
+.. _Trusted Board Boot Requirements CLIENT (TBBR-CLIENT) Armv8-A (ARM DEN0006D): https://developer.arm.com/docs/den0006/latest
 .. _Arm Confidential Compute Architecture (Arm CCA): https://www.arm.com/why-arm/architecture/security-features/arm-confidential-compute-architecture
+.. _AArch64 exception vector table: https://developer.arm.com/documentation/100933/0100/AArch64-exception-vector-table
 
 .. |Image 1| image:: ../resources/diagrams/rt-svc-descs-layout.png

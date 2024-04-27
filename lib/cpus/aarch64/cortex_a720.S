@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Arm Limited. All rights reserved.
+ * Copyright (c) 2021-2024, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -26,31 +26,44 @@
         wa_cve_2022_23960_bhb_vector_table CORTEX_A720_BHB_LOOP_COUNT, cortex_a720
 #endif /* WORKAROUND_CVE_2022_23960 */
 
-func check_errata_cve_2022_23960
-#if WORKAROUND_CVE_2022_23960
-	mov	x0, #ERRATA_APPLIES
-#else
-	mov	x0, #ERRATA_MISSING
+workaround_reset_start cortex_a720, ERRATUM(2926083), ERRATA_A720_2926083
+/* Erratum 2926083 workaround is required only if SPE is enabled */
+#if ENABLE_SPE_FOR_NS != 0
+	/* Check if Static profiling extension is implemented or present. */
+	mrs x1, id_aa64dfr0_el1
+	ubfx x0, x1, ID_AA64DFR0_PMS_SHIFT, #4
+	cbz x0, 1f
+	/* Apply the workaround by setting CPUACTLR_EL1[58:57] = 0b11. */
+	sysreg_bit_set CORTEX_A720_CPUACTLR_EL1, BIT(57)
+	sysreg_bit_set CORTEX_A720_CPUACTLR_EL1, BIT(58)
+1:
 #endif
-	ret
-endfunc check_errata_cve_2022_23960
+workaround_reset_end cortex_a720, ERRATUM(2926083)
 
-func cortex_a720_reset_func
-	/* Disable speculative loads */
-	msr	SSBS, xzr
+check_erratum_ls cortex_a720, ERRATUM(2926083), CPU_REV(0, 1)
 
-#if IMAGE_BL31 && WORKAROUND_CVE_2022_23960
+workaround_reset_start cortex_a720, ERRATUM(2940794), ERRATA_A720_2940794
+        sysreg_bit_set CORTEX_A720_CPUACTLR2_EL1, BIT(37)
+workaround_reset_end cortex_a720, ERRATUM(2940794)
+
+check_erratum_ls cortex_a720, ERRATUM(2940794), CPU_REV(0, 1)
+
+workaround_reset_start cortex_a720, CVE(2022, 23960), WORKAROUND_CVE_2022_23960
+#if IMAGE_BL31
 	/*
 	 * The Cortex A720 generic vectors are overridden to apply errata
 	 * mitigation on exception entry from lower ELs.
 	 */
-	adr	x0, wa_cve_vbar_cortex_a720
-	msr	vbar_el3, x0
-#endif /* IMAGE_BL31 && WORKAROUND_CVE_2022_23960 */
+	override_vector_table wa_cve_vbar_cortex_a720
+#endif /* IMAGE_BL31 */
+workaround_reset_end cortex_a720, CVE(2022, 23960)
 
-	isb
-	ret
-endfunc cortex_a720_reset_func
+check_erratum_chosen cortex_a720, CVE(2022, 23960), WORKAROUND_CVE_2022_23960
+
+cpu_reset_func_start cortex_a720
+	/* Disable speculative loads */
+	msr	SSBS, xzr
+cpu_reset_func_end cortex_a720
 
 	/* ----------------------------------------------------
 	 * HW will do the cache maintenance while powering down
@@ -61,33 +74,13 @@ func cortex_a720_core_pwr_dwn
 	 * Enable CPU power down bit in power control register
 	 * ---------------------------------------------------
 	 */
-	mrs	x0, CORTEX_A720_CPUPWRCTLR_EL1
-	orr	x0, x0, #CORTEX_A720_CPUPWRCTLR_EL1_CORE_PWRDN_BIT
-	msr	CORTEX_A720_CPUPWRCTLR_EL1, x0
+	sysreg_bit_set CORTEX_A720_CPUPWRCTLR_EL1, CORTEX_A720_CPUPWRCTLR_EL1_CORE_PWRDN_BIT
+
 	isb
 	ret
 endfunc cortex_a720_core_pwr_dwn
 
-#if REPORT_ERRATA
-/*
- * Errata printing function for Cortex A720. Must follow AAPCS.
- */
-func cortex_a720_errata_report
-	stp	x8, x30, [sp, #-16]!
-
-	bl	cpu_get_rev_var
-	mov	x8, x0
-
-	/*
-	 * Report all errata. The revision-variant information is passed to
-	 * checking functions of each errata.
-	 */
-	report_errata WORKAROUND_CVE_2022_23960, cortex_a720, cve_2022_23960
-
-	ldp	x8, x30, [sp], #16
-	ret
-endfunc cortex_a720_errata_report
-#endif
+errata_report_shim cortex_a720
 
 	/* ---------------------------------------------
 	 * This function provides Cortex A720-specific

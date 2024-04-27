@@ -21,6 +21,17 @@
 #error "Cortex A520 supports only AArch64. Compile with CTX_INCLUDE_AARCH32_REGS=0"
 #endif
 
+workaround_reset_start cortex_a520, ERRATUM(2630792), ERRATA_A520_2630792
+	sysreg_bit_set CORTEX_A520_CPUACTLR_EL1, BIT(38)
+workaround_reset_end cortex_a520, ERRATUM(2630792)
+
+check_erratum_ls cortex_a520, ERRATUM(2630792), CPU_REV(0, 1)
+
+workaround_reset_start cortex_a520, ERRATUM(2858100), ERRATA_A520_2858100
+	sysreg_bit_set CORTEX_A520_CPUACTLR_EL1, BIT(29)
+workaround_reset_end cortex_a520, ERRATUM(2858100)
+
+check_erratum_ls cortex_a520, ERRATUM(2858100), CPU_REV(0, 1)
 	/* ----------------------------------------------------
 	 * HW will do the cache maintenance while powering down
 	 * ----------------------------------------------------
@@ -30,28 +41,17 @@ func cortex_a520_core_pwr_dwn
 	 * Enable CPU power down bit in power control register
 	 * ---------------------------------------------------
 	 */
-	mrs	x0, CORTEX_A520_CPUPWRCTLR_EL1
-	orr	x0, x0, #CORTEX_A520_CPUPWRCTLR_EL1_CORE_PWRDN_BIT
-	msr	CORTEX_A520_CPUPWRCTLR_EL1, x0
+	sysreg_bit_set CORTEX_A520_CPUPWRCTLR_EL1, CORTEX_A520_CPUPWRCTLR_EL1_CORE_PWRDN_BIT
 	isb
 	ret
 endfunc cortex_a520_core_pwr_dwn
 
-	/*
-	 * Errata printing function for Cortex A520. Must follow AAPCS.
-	 */
-#if REPORT_ERRATA
-func cortex_a520_errata_report
-	ret
-endfunc cortex_a520_errata_report
-#endif
+errata_report_shim cortex_a520
 
-func cortex_a520_reset_func
+cpu_reset_func_start cortex_a520
 	/* Disable speculative loads */
 	msr	SSBS, xzr
-	isb
-	ret
-endfunc cortex_a520_reset_func
+cpu_reset_func_end cortex_a520
 
 	/* ---------------------------------------------
 	 * This function provides Cortex A520 specific

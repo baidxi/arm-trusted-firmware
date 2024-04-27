@@ -14,8 +14,8 @@
 
 project = "Trusted Firmware-A"
 author = "Trusted Firmware-A contributors"
-version = "2.9.0"
-release = "2.9.0"
+version = "2.10.0"
+release = "2.10.0"
 
 # -- General configuration ---------------------------------------------------
 
@@ -26,7 +26,7 @@ extensions = [
     "myst_parser",
     "sphinx.ext.autosectionlabel",
     "sphinxcontrib.plantuml",
-    "sphinxcontrib.inkscapeconverter",
+    "sphinxcontrib.rsvgconverter",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -108,4 +108,5 @@ latex_engine = "xelatex"
 latex_elements = {
     "maxlistdepth": "10",
     "pointsize": "11pt",
+    "extraclassoptions": "openany"
 }

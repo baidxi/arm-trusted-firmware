@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2023, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2024, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -241,6 +241,7 @@ DEFINE_SYSOP_PARAM_FUNC(xpaci)
 
 void flush_dcache_range(uintptr_t addr, size_t size);
 void flush_dcache_to_popa_range(uintptr_t addr, size_t size);
+void flush_dcache_to_popa_range_mte2(uintptr_t addr, size_t size);
 void clean_dcache_range(uintptr_t addr, size_t size);
 void inv_dcache_range(uintptr_t addr, size_t size);
 bool is_dcache_enabled(void);
@@ -271,6 +272,7 @@ DEFINE_IDREG_READ_FUNC(id_aa64pfr0_el1)
 DEFINE_IDREG_READ_FUNC(id_aa64pfr1_el1)
 DEFINE_RENAME_IDREG_READ_FUNC(id_aa64pfr2_el1, ID_AA64PFR2_EL1)
 DEFINE_IDREG_READ_FUNC(id_aa64dfr0_el1)
+DEFINE_IDREG_READ_FUNC(id_aa64dfr1_el1)
 DEFINE_IDREG_READ_FUNC(id_afr0_el1)
 DEFINE_SYSREG_READ_FUNC(CurrentEl)
 DEFINE_SYSREG_READ_FUNC(ctr_el0)
@@ -282,6 +284,7 @@ DEFINE_SYSREG_RW_FUNCS(elr_el1)
 DEFINE_SYSREG_RW_FUNCS(elr_el2)
 DEFINE_SYSREG_RW_FUNCS(elr_el3)
 DEFINE_SYSREG_RW_FUNCS(mdccsr_el0)
+DEFINE_SYSREG_RW_FUNCS(mdccint_el1)
 DEFINE_SYSREG_RW_FUNCS(dbgdtrrx_el0)
 DEFINE_SYSREG_RW_FUNCS(dbgdtrtx_el0)
 DEFINE_SYSREG_RW_FUNCS(sp_el1)
@@ -464,6 +467,9 @@ DEFINE_SYSREG_RW_FUNCS(cntp_tval_el0)
 DEFINE_SYSREG_RW_FUNCS(cntp_cval_el0)
 DEFINE_SYSREG_READ_FUNC(cntpct_el0)
 DEFINE_SYSREG_RW_FUNCS(cnthctl_el2)
+DEFINE_SYSREG_RW_FUNCS(cntv_ctl_el0)
+DEFINE_SYSREG_RW_FUNCS(cntv_cval_el0)
+DEFINE_SYSREG_RW_FUNCS(cntkctl_el1)
 
 DEFINE_SYSREG_RW_FUNCS(vtcr_el2)
 
@@ -480,6 +486,9 @@ DEFINE_SYSREG_RW_FUNCS(vtcr_el2)
 #define clr_cntp_ctl_enable(x)  ((x) &= ~(U(1) << CNTP_CTL_ENABLE_SHIFT))
 #define clr_cntp_ctl_imask(x)   ((x) &= ~(U(1) << CNTP_CTL_IMASK_SHIFT))
 
+DEFINE_SYSREG_RW_FUNCS(tpidr_el0)
+DEFINE_SYSREG_RW_FUNCS(tpidr_el1)
+DEFINE_SYSREG_RW_FUNCS(tpidr_el2)
 DEFINE_SYSREG_RW_FUNCS(tpidr_el3)
 
 DEFINE_SYSREG_RW_FUNCS(cntvoff_el2)
@@ -487,12 +496,30 @@ DEFINE_SYSREG_RW_FUNCS(cntvoff_el2)
 DEFINE_SYSREG_RW_FUNCS(vpidr_el2)
 DEFINE_SYSREG_RW_FUNCS(vmpidr_el2)
 
+DEFINE_SYSREG_RW_FUNCS(hacr_el2)
+DEFINE_SYSREG_RW_FUNCS(hpfar_el2)
+
+DEFINE_SYSREG_RW_FUNCS(dbgvcr32_el2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(ich_hcr_el2, ICH_HCR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(ich_vmcr_el2, ICH_VMCR_EL2)
+
 DEFINE_SYSREG_READ_FUNC(isr_el1)
 
+DEFINE_SYSREG_RW_FUNCS(mdscr_el1)
 DEFINE_SYSREG_RW_FUNCS(mdcr_el2)
 DEFINE_SYSREG_RW_FUNCS(mdcr_el3)
 DEFINE_SYSREG_RW_FUNCS(hstr_el2)
 DEFINE_SYSREG_RW_FUNCS(pmcr_el0)
+
+DEFINE_SYSREG_RW_FUNCS(csselr_el1)
+DEFINE_SYSREG_RW_FUNCS(tpidrro_el0)
+DEFINE_SYSREG_RW_FUNCS(contextidr_el1)
+DEFINE_SYSREG_RW_FUNCS(spsr_abt)
+DEFINE_SYSREG_RW_FUNCS(spsr_und)
+DEFINE_SYSREG_RW_FUNCS(spsr_irq)
+DEFINE_SYSREG_RW_FUNCS(spsr_fiq)
+DEFINE_SYSREG_RW_FUNCS(dacr32_el2)
+DEFINE_SYSREG_RW_FUNCS(ifsr32_el2)
 
 /* GICv3 System Registers */
 
@@ -542,6 +569,8 @@ DEFINE_RENAME_SYSREG_READ_FUNC(erxmisc0_el1, ERXMISC0_EL1)
 DEFINE_RENAME_SYSREG_READ_FUNC(erxmisc1_el1, ERXMISC1_EL1)
 
 DEFINE_RENAME_SYSREG_RW_FUNCS(scxtnum_el2, SCXTNUM_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(scxtnum_el1, SCXTNUM_EL1)
+DEFINE_RENAME_SYSREG_RW_FUNCS(scxtnum_el0, SCXTNUM_EL0)
 
 /* Armv8.1 VHE Registers */
 DEFINE_RENAME_SYSREG_RW_FUNCS(contextidr_el2, CONTEXTIDR_EL2)
@@ -551,6 +580,7 @@ DEFINE_RENAME_SYSREG_RW_FUNCS(ttbr1_el2, TTBR1_EL2)
 DEFINE_RENAME_IDREG_READ_FUNC(id_aa64mmfr2_el1, ID_AA64MMFR2_EL1)
 
 /* Armv8.2 RAS Registers */
+DEFINE_RENAME_SYSREG_RW_FUNCS(disr_el1, DISR_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(vdisr_el2, VDISR_EL2)
 DEFINE_RENAME_SYSREG_RW_FUNCS(vsesr_el2, VSESR_EL2)
 
@@ -578,6 +608,7 @@ DEFINE_RENAME_SYSREG_RW_FUNCS(dit, DIT)
 
 /* Armv8.4 FEAT_TRF Register */
 DEFINE_RENAME_SYSREG_RW_FUNCS(trfcr_el2, TRFCR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(trfcr_el1, TRFCR_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(vncr_el2, VNCR_EL2)
 
 /* Armv8.5 MTE Registers */
@@ -585,6 +616,7 @@ DEFINE_RENAME_SYSREG_RW_FUNCS(tfsre0_el1, TFSRE0_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(tfsr_el1, TFSR_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(rgsr_el1, RGSR_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(gcr_el1, GCR_EL1)
+DEFINE_RENAME_SYSREG_RW_FUNCS(tfsr_el2, TFSR_EL2)
 
 /* Armv8.5 FEAT_RNG Registers */
 DEFINE_RENAME_SYSREG_READ_FUNC(rndr, RNDR)
@@ -608,19 +640,28 @@ DEFINE_RENAME_SYSREG_RW_FUNCS(hcrx_el2, HCRX_EL2)
 DEFINE_RENAME_IDREG_READ_FUNC(id_aa64mmfr3_el1, ID_AA64MMFR3_EL1)
 
 /* FEAT_TCR2 Register */
+DEFINE_RENAME_SYSREG_RW_FUNCS(tcr2_el1, TCR2_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(tcr2_el2, TCR2_EL2)
 
 /* FEAT_SxPIE Registers */
+DEFINE_RENAME_SYSREG_RW_FUNCS(pire0_el1, PIRE0_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(pire0_el2, PIRE0_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(pir_el1, PIR_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(pir_el2, PIR_EL2)
 DEFINE_RENAME_SYSREG_RW_FUNCS(s2pir_el2, S2PIR_EL2)
 
 /* FEAT_SxPOE Registers */
+DEFINE_RENAME_SYSREG_RW_FUNCS(por_el1, POR_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(por_el2, POR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(s2por_el1, S2POR_EL1)
 
 /* FEAT_GCS Registers */
 DEFINE_RENAME_SYSREG_RW_FUNCS(gcscr_el2, GCSCR_EL2)
 DEFINE_RENAME_SYSREG_RW_FUNCS(gcspr_el2, GCSPR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(gcscr_el1, GCSCR_EL1)
+DEFINE_RENAME_SYSREG_RW_FUNCS(gcscre0_el1, GCSCRE0_EL1)
+DEFINE_RENAME_SYSREG_RW_FUNCS(gcspr_el1, GCSPR_EL1)
+DEFINE_RENAME_SYSREG_RW_FUNCS(gcspr_el0, GCSPR_EL0)
 
 /* DynamIQ Shared Unit power management */
 DEFINE_RENAME_SYSREG_RW_FUNCS(clusterpwrdn_el1, CLUSTERPWRDN_EL1)
@@ -677,13 +718,85 @@ static inline uint64_t el_implemented(unsigned int el)
 }
 
 /*
- * TLBIPAALLOS instruction
- * (TLB Inivalidate GPT Information by PA,
- * All Entries, Outer Shareable)
+ * TLBI PAALLOS instruction
+ * (TLB Invalidate GPT Information by PA, All Entries, Outer Shareable)
  */
 static inline void tlbipaallos(void)
 {
-	__asm__("SYS #6,c8,c1,#4");
+	__asm__("sys #6, c8, c1, #4");
+}
+
+/*
+ * TLBI RPALOS instructions
+ * (TLB Range Invalidate GPT Information by PA, Last level, Outer Shareable)
+ *
+ * command SIZE, bits [47:44] field:
+ * 0b0000	4KB
+ * 0b0001	16KB
+ * 0b0010	64KB
+ * 0b0011	2MB
+ * 0b0100	32MB
+ * 0b0101	512MB
+ * 0b0110	1GB
+ * 0b0111	16GB
+ * 0b1000	64GB
+ * 0b1001	512GB
+ */
+#define TLBI_SZ_4K		0UL
+#define TLBI_SZ_16K		1UL
+#define TLBI_SZ_64K		2UL
+#define TLBI_SZ_2M		3UL
+#define TLBI_SZ_32M		4UL
+#define TLBI_SZ_512M		5UL
+#define TLBI_SZ_1G		6UL
+#define TLBI_SZ_16G		7UL
+#define TLBI_SZ_64G		8UL
+#define TLBI_SZ_512G		9UL
+
+#define	TLBI_ADDR_SHIFT		U(12)
+#define	TLBI_SIZE_SHIFT		U(44)
+
+#define TLBIRPALOS(_addr, _size)				\
+{								\
+	u_register_t arg = ((_addr) >> TLBI_ADDR_SHIFT) |	\
+			   ((_size) << TLBI_SIZE_SHIFT);	\
+	__asm__("sys #6, c8, c4, #7, %0" : : "r" (arg));	\
+}
+
+/* Note: addr must be aligned to 4KB */
+static inline void tlbirpalos_4k(uintptr_t addr)
+{
+	TLBIRPALOS(addr, TLBI_SZ_4K);
+}
+
+/* Note: addr must be aligned to 16KB */
+static inline void tlbirpalos_16k(uintptr_t addr)
+{
+	TLBIRPALOS(addr, TLBI_SZ_16K);
+}
+
+/* Note: addr must be aligned to 64KB */
+static inline void tlbirpalos_64k(uintptr_t addr)
+{
+	TLBIRPALOS(addr, TLBI_SZ_64K);
+}
+
+/* Note: addr must be aligned to 2MB */
+static inline void tlbirpalos_2m(uintptr_t addr)
+{
+	TLBIRPALOS(addr, TLBI_SZ_2M);
+}
+
+/* Note: addr must be aligned to 32MB */
+static inline void tlbirpalos_32m(uintptr_t addr)
+{
+	TLBIRPALOS(addr, TLBI_SZ_32M);
+}
+
+/* Note: addr must be aligned to 512MB */
+static inline void tlbirpalos_512m(uintptr_t addr)
+{
+	TLBIRPALOS(addr, TLBI_SZ_512M);
 }
 
 /*
@@ -694,7 +807,6 @@ static inline void tlbipaallos(void)
  * @size: size of the range of invalidation
  */
 void gpt_tlbi_by_pa_ll(uint64_t pa, size_t size);
-
 
 /* Previously defined accessor functions with incomplete register names  */
 

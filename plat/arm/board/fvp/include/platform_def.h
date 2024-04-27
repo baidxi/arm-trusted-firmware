@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2024, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -99,6 +99,20 @@
 					FVP_DTB_DRAM_MAP_SIZE,		\
 					MT_MEMORY | MT_RO | MT_NS)
 
+/*
+ * On the FVP platform when using the EL3 SPMC implementation allocate the
+ * datastore for tracking shared memory descriptors in the TZC DRAM section
+ * to ensure sufficient storage can be allocated.
+ * Provide an implementation of the accessor method to allow the datastore
+ * details to be retrieved by the SPMC.
+ * The SPMC will take care of initializing the memory region.
+ */
+
+#define PLAT_SPMC_SHMEM_DATASTORE_SIZE 512 * 1024
+
+/* Define memory configuration for device tree files. */
+#define PLAT_ARM_HW_CONFIG_SIZE			U(0x4000)
+
 #if SPMC_AT_EL3
 /*
  * Number of Secure Partitions supported.
@@ -127,6 +141,11 @@
  * Load address of BL33 for this platform port
  */
 #define PLAT_ARM_NS_IMAGE_BASE		(ARM_DRAM1_BASE + UL(0x8000000))
+
+#if TRANSFER_LIST
+#define FW_HANDOFF_SIZE			0x4000
+#define FW_NS_HANDOFF_BASE		(PLAT_ARM_NS_IMAGE_BASE - FW_HANDOFF_SIZE)
+#endif
 
 /*
  * PLAT_ARM_MMAP_ENTRIES depends on the number of entries in the
@@ -168,8 +187,13 @@
 #  define MAX_XLAT_TABLES		6
 # endif
 #elif !USE_ROMLIB
-# define PLAT_ARM_MMAP_ENTRIES		11
-# define MAX_XLAT_TABLES		5
+# if ENABLE_RME && defined(IMAGE_BL2)
+#  define PLAT_ARM_MMAP_ENTRIES		12
+#  define MAX_XLAT_TABLES		6
+# else
+#  define PLAT_ARM_MMAP_ENTRIES		11
+#  define MAX_XLAT_TABLES		5
+# endif /* (IMAGE_BL2 && ENABLE_RME) */
 #else
 # define PLAT_ARM_MMAP_ENTRIES		12
 # if (defined(SPD_tspd) || defined(SPD_opteed) || defined(SPD_spmd)) && \
@@ -183,8 +207,10 @@ defined(IMAGE_BL2) && MEASURED_BOOT
 /*
  * PLAT_ARM_MAX_BL1_RW_SIZE is calculated using the current BL1 RW debug size
  * plus a little space for growth.
+ * In case of PSA Crypto API, few algorithms like ECDSA needs bigger BL1 RW
+ * area.
  */
-#if TF_MBEDTLS_KEY_ALG_ID == TF_MBEDTLS_RSA_AND_ECDSA
+#if TF_MBEDTLS_KEY_ALG_ID == TF_MBEDTLS_RSA_AND_ECDSA || PSA_CRYPTO
 #define PLAT_ARM_MAX_BL1_RW_SIZE	UL(0xC000)
 #else
 #define PLAT_ARM_MAX_BL1_RW_SIZE	UL(0xB000)
@@ -222,7 +248,13 @@ defined(IMAGE_BL2) && MEASURED_BOOT
 /* When ARM_BL31_IN_DRAM is set, BL2 can use almost all of Trusted SRAM. */
 # define PLAT_ARM_MAX_BL2_SIZE	(UL(0x1F000) - FVP_BL2_ROMLIB_OPTIMIZATION)
 #else
-# define PLAT_ARM_MAX_BL2_SIZE	(UL(0x13000) - FVP_BL2_ROMLIB_OPTIMIZATION)
+/**
+ * Default to just under half of SRAM to ensure there's enough room for really
+ * large BL31 build configurations when using the default SRAM size (256 Kb).
+ */
+#define PLAT_ARM_MAX_BL2_SIZE                                               \
+	(((PLAT_ARM_TRUSTED_SRAM_SIZE / 3) & ~PAGE_SIZE_MASK) - PAGE_SIZE - \
+	 FVP_BL2_ROMLIB_OPTIMIZATION)
 #endif
 
 #if RESET_TO_BL31
@@ -404,7 +436,7 @@ defined(IMAGE_BL2) && MEASURED_BOOT
 #define PLAT_SDEI_DP_EVENT_MAX_CNT	ARM_SDEI_DP_EVENT_MAX_CNT
 #define PLAT_SDEI_DS_EVENT_MAX_CNT	ARM_SDEI_DS_EVENT_MAX_CNT
 #else
-  #if PLATFORM_TEST_RAS_FFH
+  #if PLATFORM_TEST_RAS_FFH || PLATFORM_TEST_FFH_LSP_RAS_SP
   #define PLAT_ARM_PRIVATE_SDEI_EVENTS \
 	ARM_SDEI_PRIVATE_EVENTS, \
 	SDEI_EXPLICIT_EVENT(5000, SDEI_MAPF_NORMAL), \
@@ -437,7 +469,12 @@ defined(IMAGE_BL2) && MEASURED_BOOT
 /*
  * Maximum size of Event Log buffer used in Measured Boot Event Log driver
  */
+#if ENABLE_RME && (defined(SPD_tspd) || defined(SPD_opteed) || defined(SPD_spmd))
+/* Account for additional measurements of secure partitions and SPM. */
+#define	PLAT_ARM_EVENT_LOG_MAX_SIZE		UL(0x800)
+#else
 #define	PLAT_ARM_EVENT_LOG_MAX_SIZE		UL(0x400)
+#endif
 
 /*
  * Maximum size of Event Log buffer used for DRTM

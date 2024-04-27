@@ -18,6 +18,7 @@
 #include <versal_def.h>
 
 uint32_t platform_id, platform_version;
+uint32_t cpu_clock = VERSAL_CPU_CLOCK;
 
 /*
  * Table of regions to map using the MMU.
@@ -33,7 +34,7 @@ const mmap_region_t plat_versal_mmap[] = {
 	{ 0 }
 };
 
-const mmap_region_t *plat_versal_get_mmap(void)
+const mmap_region_t *plat_get_mmap(void)
 {
 	return plat_versal_mmap;
 }
@@ -53,11 +54,6 @@ void versal_config_setup(void)
 	generic_delay_timer_init();
 }
 
-uint32_t plat_get_syscnt_freq2(void)
-{
-	return VERSAL_CPU_CLOCK;
-}
-
 void board_detection(void)
 {
 	uint32_t plat_info[2];
@@ -72,4 +68,9 @@ void board_detection(void)
 
 	platform_id = FIELD_GET(PLATFORM_MASK, plat_info[1]);
 	platform_version = FIELD_GET(PLATFORM_VERSION_MASK, plat_info[1]);
+}
+
+uint32_t get_uart_clk(void)
+{
+	return UART_CLOCK;
 }

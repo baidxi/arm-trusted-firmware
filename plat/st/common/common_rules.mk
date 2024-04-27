@@ -49,7 +49,7 @@ ${BUILD_PLAT}/fdts/%-bl2.dtb: ${BUILD_PLAT}/fdts/%-bl2.dts
 
 ${BUILD_PLAT}/$(PLAT)-%.o: ${BUILD_PLAT}/fdts/%-bl2.dtb $(STM32_BINARY_MAPPING) bl2
 	@echo "  AS      $${PLAT}.S"
-	${Q}${AS} ${ASFLAGS} ${TF_CFLAGS} \
+	${Q}$($(ARCH)-as) -x assembler-with-cpp $(TF_CFLAGS_$(ARCH)) ${ASFLAGS} ${TF_CFLAGS} \
 		-DDTB_BIN_PATH=\"$<\" \
 		-c $(word 2,$^) -o $@
 
@@ -57,10 +57,14 @@ $(eval $(call MAKE_LD,${STM32_TF_LINKERFILE},$(STM32_LD_FILE),bl2))
 
 tf-a-%.elf: $(PLAT)-%.o ${STM32_TF_LINKERFILE}
 	@echo "  LDS     $<"
-	${Q}${LD} -o $@ ${STM32_TF_ELF_LDFLAGS} -Map=$(@:.elf=.map) --script ${STM32_TF_LINKERFILE} $<
+ifeq ($($(ARCH)-ld-id),gnu-gcc)
+	${Q}$($(ARCH)-ld) -o $@ $(subst --,-Wl$(comma)--,${STM32_TF_ELF_LDFLAGS}) -nostartfiles -Wl,-Map=$(@:.elf=.map) -Wl,-dT ${STM32_TF_LINKERFILE} $<
+else
+	${Q}$($(ARCH)-ld) -o $@ ${STM32_TF_ELF_LDFLAGS} -Map=$(@:.elf=.map) --script ${STM32_TF_LINKERFILE} $<
+endif
 
 tf-a-%.bin: tf-a-%.elf
-	${Q}${OC} -O binary $< $@
+	${Q}$($(ARCH)-oc) -O binary $< $@
 	@echo
 	@echo "Built $@ successfully"
 	@echo
@@ -68,7 +72,7 @@ tf-a-%.bin: tf-a-%.elf
 tf-a-%.stm32: tf-a-%.bin ${STM32_DEPS}
 	@echo
 	@echo "Generate $@"
-	$(eval LOADADDR = $(shell cat $(@:.stm32=.map) | grep RAM | awk '{print $$2}'))
+	$(eval LOADADDR = $(shell cat $(@:.stm32=.map) | grep '^RAM' | awk '{print $$2}'))
 	$(eval ENTRY = $(shell cat $(@:.stm32=.map) | grep "__BL2_IMAGE_START" | awk '{print $$1}'))
 	${Q}${STM32IMAGE} -s $< -d $@ \
 		-l $(LOADADDR) -e ${ENTRY} \

@@ -27,6 +27,7 @@
 #include <imx8m_caam.h>
 #include <imx8m_ccm.h>
 #include <imx8m_csu.h>
+#include <imx8m_snvs.h>
 #include <platform_def.h>
 #include <plat_imx8.h>
 
@@ -122,7 +123,7 @@ static void bl31_tzc380_setup(void)
 void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 		u_register_t arg2, u_register_t arg3)
 {
-	unsigned int console_base = 0U;
+	unsigned int console_base = IMX_BOOT_UART_BASE;
 	static console_t console;
 	unsigned int val;
 	int i;
@@ -138,14 +139,18 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 
 	imx_csu_init(csu_cfg);
 
+	/*
+	 * Configure the force_incr programmable bit in GPV_5 of PL301_display, which fixes
+	 * partial write issue. The AXI2AHB bridge is used for masters that access the TCM
+	 * through system bus. Please refer to errata ERR050362 for more information.
+	 */
+	mmio_setbits_32((GPV5_BASE_ADDR + FORCE_INCR_OFFSET), FORCE_INCR_BIT_MASK);
+
 	/* config the ocram memory range for secure access */
 	mmio_write_32(IMX_IOMUX_GPR_BASE + 0x2c, 0x4c1);
 	val = mmio_read_32(IMX_IOMUX_GPR_BASE + 0x2c);
 	mmio_write_32(IMX_IOMUX_GPR_BASE + 0x2c, val | 0x3DFF0000);
 
-#if IMX_BOOT_UART_BASE
-	console_base = IMX_BOOT_UART_BASE;
-#endif
 	if (console_base == 0U) {
 		console_base = imx8m_uart_get_base();
 	}
@@ -187,6 +192,10 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 #endif
 #endif
 
+#if !defined(SPD_opteed) && !defined(SPD_trusty)
+	enable_snvs_privileged_access();
+#endif
+
 	bl31_tzc380_setup();
 }
 
@@ -208,8 +217,10 @@ void bl31_plat_arch_setup(void)
 #if USE_COHERENT_MEM
 		MAP_COHERENT_MEM,
 #endif
+#if defined(SPD_opteed) || defined(SPD_trusty)
 		/* Map TEE memory */
 		MAP_BL32_TOTAL,
+#endif
 		{0}
 	};
 

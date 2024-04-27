@@ -59,43 +59,26 @@
 	 * zero here but are updated ahead of transitioning to a lower EL in the
 	 * function cm_init_context_common().
 	 *
-	 * SCR_EL3.TWE: Set to zero so that execution of WFE instructions at
-	 *  EL2, EL1 and EL0 are not trapped to EL3.
-	 *
-	 * SCR_EL3.TWI: Set to zero so that execution of WFI instructions at
-	 *  EL2, EL1 and EL0 are not trapped to EL3.
-	 *
 	 * SCR_EL3.SIF: Set to one to disable instruction fetches from
 	 *  Non-secure memory.
-	 *
-	 * SCR_EL3.SMD: Set to zero to enable SMC calls at EL1 and above, from
-	 *  both Security states and both Execution states.
 	 *
 	 * SCR_EL3.EA: Set to one to route External Aborts and SError Interrupts
 	 *  to EL3 when executing at any EL.
 	 *
-	 * SCR_EL3.{API,APK}: For Armv8.3 pointer authentication feature,
-	 * disable traps to EL3 when accessing key registers or using pointer
-	 * authentication instructions from lower ELs.
+	 * SCR_EL3.EEL2: Set to one if S-EL2 is present and enabled.
+	 *
+	 * NOTE: Modifying EEL2 bit along with EA bit ensures that we mitigate
+	 * against ERRATA_V2_3099206.
 	 * ---------------------------------------------------------------------
 	 */
-	mov_imm	x0, ((SCR_RESET_VAL | SCR_EA_BIT | SCR_SIF_BIT) \
-			& ~(SCR_TWE_BIT | SCR_TWI_BIT | SCR_SMD_BIT))
-#if CTX_INCLUDE_PAUTH_REGS
-	/*
-	 * If the pointer authentication registers are saved during world
-	 * switches, enable pointer authentication everywhere, as it is safe to
-	 * do so.
-	 */
-	orr	x0, x0, #(SCR_API_BIT | SCR_APK_BIT)
+	mov_imm	x0, (SCR_RESET_VAL | SCR_EA_BIT | SCR_SIF_BIT)
+#if IMAGE_BL31 && defined(SPD_spmd) && SPMD_SPM_AT_SEL2
+	mrs x1, id_aa64pfr0_el1
+	and x1, x1, #(ID_AA64PFR0_SEL2_MASK << ID_AA64PFR0_SEL2_SHIFT)
+	cbz x1, 1f
+	orr x0, x0, #SCR_EEL2_BIT
 #endif
-#if ENABLE_RME
-	/*
-	 * TODO: Settting the EEL2 bit to allow EL3 access to secure only registers
-	 * in context management. This will need to be refactored.
-	 */
-	orr	x0, x0, #SCR_EEL2_BIT
-#endif
+1:
 	msr	scr_el3, x0
 
 	/* ---------------------------------------------------------------------
@@ -132,25 +115,9 @@
 	/* ---------------------------------------------------------------------
 	 * Initialise CPTR_EL3, setting all fields rather than relying on hw.
 	 * All fields are architecturally UNKNOWN on reset.
-	 *
-	 * CPTR_EL3.TCPAC: Set to zero so that any accesses to CPACR_EL1,
-	 *  CPTR_EL2, CPACR, or HCPTR do not trap to EL3.
-	 *
-	 * CPTR_EL3.TFP: Set to zero so that accesses to the V- or Z- registers
-	 *  by Advanced SIMD, floating-point or SVE instructions (if implemented)
-	 *  do not trap to EL3.
-	 *
-	 * CPTR_EL3.TAM: Set to one so that Activity Monitor access is
-	 *  trapped to EL3 by default.
-	 *
-	 * CPTR_EL3.EZ: Set to zero so that all SVE functionality is trapped
-	 *  to EL3 by default.
-	 *
-	 * CPTR_EL3.ESM: Set to zero so that all SME functionality is trapped
-	 *  to EL3 by default.
+	 * ---------------------------------------------------------------------
 	 */
-
-	mov_imm x0, (CPTR_EL3_RESET_VAL & ~(TCPAC_BIT | TFP_BIT))
+	mov_imm x0, CPTR_EL3_RESET_VAL
 	msr	cptr_el3, x0
 
 	/*
@@ -253,6 +220,10 @@
 		 */
 		mov_imm	x0, (SCTLR_RESET_VAL & ~(SCTLR_EE_BIT | SCTLR_WXN_BIT \
 				| SCTLR_SA_BIT | SCTLR_A_BIT | SCTLR_DSSBS_BIT))
+#if ENABLE_FEAT_RAS
+		/* If FEAT_RAS is present assume FEAT_IESB is also present */
+		orr	x0, x0, #SCTLR_IESB_BIT
+#endif
 		msr	sctlr_el3, x0
 		isb
 	.endif /* _init_sctlr */
@@ -484,6 +455,22 @@
 	isb
 	msr	tcr_el1, x29
 #endif
+	.endm
+
+/* -----------------------------------------------------------------
+ * The below macro reads SCR_EL3 from the context structure to
+ * determine the security state of the context upon ERET.
+ * ------------------------------------------------------------------
+ */
+	.macro get_security_state _ret:req, _scr_reg:req
+		ubfx 	\_ret, \_scr_reg, #SCR_NSE_SHIFT, #1
+		cmp 	\_ret, #1
+		beq 	realm_state
+		bfi	\_ret, \_scr_reg, #0, #1
+		b 	end
+	realm_state:
+		mov 	\_ret, #2
+	end:
 	.endm
 
 #endif /* EL3_COMMON_MACROS_S */

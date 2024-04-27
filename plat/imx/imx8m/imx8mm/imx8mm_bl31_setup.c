@@ -29,6 +29,7 @@
 #include <imx8m_caam.h>
 #include <imx8m_ccm.h>
 #include <imx8m_csu.h>
+#include <imx8m_snvs.h>
 #include <plat_imx8.h>
 
 #define TRUSTY_PARAMS_LEN_BYTES      (4096*2)
@@ -76,11 +77,31 @@ static const struct imx_rdc_cfg rdc[] = {
 
 static const struct imx_csu_cfg csu_cfg[] = {
 	/* peripherals csl setting */
-	CSU_CSLx(0x1, CSU_SEC_LEVEL_0, UNLOCKED),
+	CSU_CSLx(CSU_CSL_RDC, CSU_SEC_LEVEL_3, LOCKED),
+	CSU_CSLx(CSU_CSL_TZASC, CSU_SEC_LEVEL_5, LOCKED),
+	CSU_CSLx(CSU_CSL_CSU, CSU_SEC_LEVEL_5, LOCKED),
 
 	/* master HP0~1 */
 
 	/* SA setting */
+	CSU_SA(CSU_SA_M4, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_SDMA1, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_PCIE_CTRL1, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_USB1, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_USB2, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_VPU, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_GPU, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_APBHDMA, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_ENET, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_USDHC1, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_USDHC2, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_USDHC3, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_HUGO, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_DAP, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_SDMA2, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_SDMA3, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_LCDIF, NON_SEC_ACCESS, LOCKED),
+	CSU_SA(CSU_SA_CSI, NON_SEC_ACCESS, LOCKED),
 
 	/* HP control setting */
 
@@ -131,7 +152,7 @@ void bl31_tzc380_setup(void)
 void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 		u_register_t arg2, u_register_t arg3)
 {
-	unsigned int console_base = 0U;
+	unsigned int console_base = IMX_BOOT_UART_BASE;
 	static console_t console;
 	int i;
 
@@ -146,9 +167,6 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 
 	imx_csu_init(csu_cfg);
 
-#if IMX_BOOT_UART_BASE
-	console_base = IMX_BOOT_UART_BASE;
-#endif
 	if (console_base == 0U) {
 		console_base = imx8m_uart_get_base();
 	}
@@ -190,6 +208,10 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 #endif
 #endif
 
+#if !defined(SPD_opteed) && !defined(SPD_trusty)
+	enable_snvs_privileged_access();
+#endif
+
 	bl31_tzc380_setup();
 }
 
@@ -211,8 +233,10 @@ void bl31_plat_arch_setup(void)
 #if USE_COHERENT_MEM
 		MAP_COHERENT_MEM,
 #endif
+#if defined(SPD_opteed) || defined(SPD_trusty)
 		/* Map TEE memory */
 		MAP_BL32_TOTAL,
+#endif
 		{0}
 	};
 

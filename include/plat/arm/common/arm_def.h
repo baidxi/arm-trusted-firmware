@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2023, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2024, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -12,6 +12,7 @@
 #include <drivers/arm/gic_common.h>
 #include <lib/utils_def.h>
 #include <lib/xlat_tables/xlat_tables_defs.h>
+#include <plat/arm/board/common/rotpk/rotpk_def.h>
 #include <plat/arm/common/smccc_def.h>
 #include <plat/common/common_def.h>
 
@@ -19,13 +20,6 @@
  * Definitions common to all ARM standard platforms
  *****************************************************************************/
 
-/*
- * Root of trust key lengths
- */
-#define ARM_ROTPK_HEADER_LEN		19
-#define ARM_ROTPK_HASH_LEN		32
-/* ARM_ROTPK_KEY_LEN includes DER header + raw key material */
-#define ARM_ROTPK_KEY_LEN		294
 
 /* Special value used to verify platform parameters from BL2 to BL31 */
 #define ARM_BL31_PLAT_PARAM_VAL		ULL(0x0f1e2d3c4b5a6978)
@@ -156,10 +150,10 @@ MEASURED_BOOT
 #endif /* (SPD_tspd || SPD_opteed || SPD_spmd) && MEASURED_BOOT */
 
 #if ENABLE_RME
-#define ARM_L1_GPT_ADDR_BASE		(ARM_DRAM1_BASE +		\
+#define ARM_L1_GPT_BASE		(ARM_DRAM1_BASE +		\
 					ARM_DRAM1_SIZE -		\
 					ARM_L1_GPT_SIZE)
-#define ARM_L1_GPT_END			(ARM_L1_GPT_ADDR_BASE +		\
+#define ARM_L1_GPT_END			(ARM_L1_GPT_BASE +		\
 					ARM_L1_GPT_SIZE - 1U)
 
 #define ARM_REALM_BASE			(ARM_EL3_RMM_SHARED_BASE -	\
@@ -198,16 +192,7 @@ MEASURED_BOOT
 					ARM_AP_TZC_DRAM1_SIZE - 1U)
 
 /* Define the Access permissions for Secure peripherals to NS_DRAM */
-#if ARM_CRYPTOCELL_INTEG
-/*
- * Allow Secure peripheral to read NS DRAM when integrated with CryptoCell.
- * This is required by CryptoCell to authenticate BL33 which is loaded
- * into the Non Secure DDR.
- */
-#define ARM_TZC_NS_DRAM_S_ACCESS	TZC_REGION_S_RD
-#else
 #define ARM_TZC_NS_DRAM_S_ACCESS	TZC_REGION_S_NONE
-#endif
 
 #ifdef SPD_opteed
 /*
@@ -358,7 +343,7 @@ MEASURED_BOOT
 
 
 #define ARM_MAP_GPT_L1_DRAM	MAP_REGION_FLAT(			\
-					ARM_L1_GPT_ADDR_BASE,		\
+					ARM_L1_GPT_BASE,		\
 					ARM_L1_GPT_SIZE,		\
 					MT_MEMORY | MT_RW | EL3_PAS)
 
@@ -437,7 +422,7 @@ MEASURED_BOOT
  * Map L0_GPT with read and write permissions
  */
 #if ENABLE_RME
-#define ARM_MAP_L0_GPT_REGION		MAP_REGION_FLAT(ARM_L0_GPT_ADDR_BASE,	\
+#define ARM_MAP_L0_GPT_REGION		MAP_REGION_FLAT(ARM_L0_GPT_BASE,	\
 						ARM_L0_GPT_SIZE,		\
 						MT_MEMORY | MT_RW | MT_ROOT)
 #endif
@@ -548,8 +533,8 @@ MEASURED_BOOT
  * configuration memory, 4KB aligned.
  */
 #define ARM_L0_GPT_SIZE			(PAGE_SIZE)
-#define ARM_L0_GPT_ADDR_BASE		(ARM_FW_CONFIGS_LIMIT)
-#define ARM_L0_GPT_LIMIT		(ARM_L0_GPT_ADDR_BASE + ARM_L0_GPT_SIZE)
+#define ARM_L0_GPT_BASE		(ARM_FW_CONFIGS_LIMIT)
+#define ARM_L0_GPT_LIMIT		(ARM_L0_GPT_BASE + ARM_L0_GPT_SIZE)
 #else
 #define ARM_L0_GPT_SIZE			U(0)
 #endif
@@ -593,15 +578,15 @@ MEASURED_BOOT
  * As the BL31 image size appears to be increased when built with the ENABLE_PIE
  * option, set BL2 base address to have enough space for BL31 in Trusted SRAM.
  */
-#define BL2_BASE			(ARM_TRUSTED_SRAM_BASE + \
-					(PLAT_ARM_TRUSTED_SRAM_SIZE >> 1) + \
-					0x3000)
+#define BL2_OFFSET			(0x5000)
 #else
 /* Put BL2 towards the middle of the Trusted SRAM */
-#define BL2_BASE			(ARM_TRUSTED_SRAM_BASE + \
-					(PLAT_ARM_TRUSTED_SRAM_SIZE >> 1) + \
-					0x2000)
+#define BL2_OFFSET			(0x2000)
 #endif /* ENABLE_PIE */
+
+#define BL2_BASE			(ARM_TRUSTED_SRAM_BASE + \
+					    (PLAT_ARM_TRUSTED_SRAM_SIZE >> 1) + \
+					    BL2_OFFSET)
 #define BL2_LIMIT			(ARM_BL_RAM_BASE + ARM_BL_RAM_SIZE)
 
 #else
@@ -776,11 +761,14 @@ MEASURED_BOOT
 #define PLAT_PERCPU_BAKERY_LOCK_SIZE		(1 * CACHE_WRITEBACK_GRANULE)
 
 /* Priority levels for ARM platforms */
-#if RAS_FFH_SUPPORT
+#if ENABLE_FEAT_RAS && FFH_SUPPORT
 #define PLAT_RAS_PRI			0x10
 #endif
 #define PLAT_SDEI_CRITICAL_PRI		0x60
 #define PLAT_SDEI_NORMAL_PRI		0x70
+
+/* CPU Fault Handling Interrupt(FHI) PPI interrupt ID */
+#define PLAT_CORE_FAULT_IRQ		17
 
 /* ARM platforms use 3 upper bits of secure interrupt priority */
 #define PLAT_PRI_BITS			3

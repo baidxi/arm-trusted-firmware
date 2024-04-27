@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2021-2022, Arm Limited and Contributors. All rights reserved.
+# Copyright (c) 2021-2023, Arm Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -28,8 +28,13 @@ FIP_BL2_ARGS := tb-fw
 
 override NEED_BL2U	:=	no
 override NEED_BL31	:=	yes
-NEED_BL32		:=	yes
+NEED_BL32		?=	yes
 override NEED_BL33	:=	yes
+
+# Add CORSTONE1000_WITH_BL32 as a preprocessor define (-D option)
+ifeq (${NEED_BL32},yes)
+$(eval $(call add_define,CORSTONE1000_WITH_BL32))
+endif
 
 # Include GICv2 driver files
 include drivers/arm/gic/v2/gicv2.mk
@@ -43,6 +48,7 @@ BL2_SOURCES		+=	plat/arm/board/corstone1000/common/corstone1000_security.c		\
 				plat/arm/board/corstone1000/common/corstone1000_err.c		\
 				plat/arm/board/corstone1000/common/corstone1000_trusted_boot.c	\
 				lib/utils/mem_region.c					\
+				lib/cpus/aarch64/cpu_helpers.S \
 				plat/arm/board/corstone1000/common/corstone1000_helpers.S		\
 				plat/arm/board/corstone1000/common/corstone1000_plat.c		\
 				plat/arm/board/corstone1000/common/corstone1000_bl2_mem_params_desc.c \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2022, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2022, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -61,15 +61,7 @@ int psci_cpu_on_start(u_register_t target_cpu,
 {
 	int rc;
 	aff_info_state_t target_aff_state;
-	int ret = plat_core_pos_by_mpidr(target_cpu);
-	unsigned int target_idx;
-
-	/* Calling function must supply valid input arguments */
-	assert(ret >= 0);
-	assert((unsigned int)ret < PLATFORM_CORE_COUNT);
-	assert(ep != NULL);
-
-	target_idx = (unsigned int)ret;
+	unsigned int target_idx = (unsigned int)plat_core_pos_by_mpidr(target_cpu);
 
 	/*
 	 * This function must only be called on platforms where the

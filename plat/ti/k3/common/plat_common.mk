@@ -28,6 +28,8 @@ ERRATA_A72_1319367	:=	1
 
 CRASH_REPORTING		:= 1
 
+NS_TIMER_SWITCH		:=	0
+
 # Split out RO data into a non-executable section
 SEPARATE_CODE_AND_RODATA :=    1
 
@@ -43,10 +45,6 @@ $(eval $(call add_define,K3_USART))
 # Allow customizing the UART baud rate
 K3_USART_BAUD		:=	115200
 $(eval $(call add_define,K3_USART_BAUD))
-
-# Enable system suspend modes
-K3_PM_SYSTEM_SUSPEND	:=	0
-$(eval $(call add_define,K3_PM_SYSTEM_SUSPEND))
 
 # Libraries
 include lib/xlat_tables_v2/xlat_tables.mk
