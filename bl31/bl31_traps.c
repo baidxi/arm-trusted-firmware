@@ -36,7 +36,7 @@ static bool is_tge_enabled(void)
 {
 	u_register_t hcr_el2 = read_hcr_el2();
 
-	return ((read_feat_vhe_id_field() != 0U) && ((hcr_el2 & HCR_TGE_BIT) != 0U));
+	return ((is_feat_vhe_present()) && ((hcr_el2 & HCR_TGE_BIT) != 0U));
 }
 
 /*
@@ -90,12 +90,18 @@ static u_register_t get_elr_el3(u_register_t spsr_el3, u_register_t vbar, unsign
  * Explicitly create all bits of SPSR to get PSTATE at exception return.
  *
  * The code is based on "Aarch64.exceptions.takeexception" described in
- * DDI0602 revision 2023-06.
- * "https://developer.arm.com/documentation/ddi0602/2023-06/Shared-Pseudocode/
+ * DDI0602 revision 2025-03.
+ * "https://developer.arm.com/documentation/ddi0597/2025-03/Shared-Pseudocode/
  * aarch64-exceptions-takeexception"
  *
- * NOTE: This piece of code must be reviewed every release to ensure that
- * we keep up with new ARCH features which introduces a new SPSR bit.
+ * NOTE: This piece of code must be reviewed every release against the latest
+ * takeexception sequence to ensure that we keep up with new arch features that
+ * affect the PSTATE.
+ *
+ * TF-A 2.13 release review
+ *
+ * Review of version 2025-03 indicates we are missing support for one feature.
+ *  - FEAT_UINJ (2024 extension)
  */
 u_register_t create_spsr(u_register_t old_spsr, unsigned int target_el)
 {
@@ -116,7 +122,7 @@ u_register_t create_spsr(u_register_t old_spsr, unsigned int target_el)
 
 	/* If FEAT_BTI is present, clear BTYPE bits */
 	new_spsr |= old_spsr & (SPSR_BTYPE_MASK_AARCH64 << SPSR_BTYPE_SHIFT_AARCH64);
-	if (is_armv8_5_bti_present()) {
+	if (is_feat_bti_present()) {
 		new_spsr &= ~(SPSR_BTYPE_MASK_AARCH64 << SPSR_BTYPE_SHIFT_AARCH64);
 	}
 
@@ -194,6 +200,12 @@ u_register_t create_spsr(u_register_t old_spsr, unsigned int target_el)
 			gcscr = read_gcscr_el1();
 		}
 		new_spsr |= (gcscr & GCSCR_EXLOCK_EN_BIT) ? SPSR_EXLOCK_BIT_AARCH64 : 0;
+	}
+
+	/* If FEAT_PAUTH_LR present then zero the PACM bit. */
+	new_spsr |= old_spsr & SPSR_PACM_BIT_AARCH64;
+	if (is_feat_pauth_lr_present()) {
+		new_spsr &= ~SPSR_PACM_BIT_AARCH64;
 	}
 
 	return new_spsr;

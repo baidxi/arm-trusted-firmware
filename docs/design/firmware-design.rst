@@ -247,7 +247,7 @@ BL1 performs minimal architectural initialization as follows.
 
 -  CPU initialization
 
-   BL1 calls the ``reset_handler()`` function which in turn calls the CPU
+   BL1 calls the ``reset_handler`` macro/function which in turn calls the CPU
    specific reset handler function (see the section: "CPU specific operations
    framework").
 
@@ -1056,6 +1056,18 @@ AArch64 or AArch32 EL3 Runtime Software for Armv8-A systems. A guide to
 integrating PSCI library with AArch32 EL3 Runtime Software can be found
 at :ref:`PSCI Library Integration guide for Armv8-A AArch32 systems`.
 
+DSU driver
+----------
+
+Platforms that include a DSU (DynamIQ Shared Unit) can define
+the ``USE_DSU_DRIVER`` build flag to enable the DSU driver.
+This driver is responsible for configuring DSU-related powerdown
+and power feature settings using ``dsu_driver_init()`` and for
+preserving the context of DSU PMU system registers.
+
+To support the DSU driver, platforms must define the ``plat_dsu_data``
+structure.
+
 .. _firmware_design_sel1_spd:
 
 Secure-EL1 Payloads and Dispatchers
@@ -1337,7 +1349,7 @@ Guidelines for Reset Handlers
 
 TF-A implements a framework that allows CPU and platform ports to perform
 actions very early after a CPU is released from reset in both the cold and warm
-boot paths. This is done by calling the ``reset_handler()`` function in both
+boot paths. This is done by calling the ``reset_handler`` macro/function in both
 the BL1 and BL31 images. It in turn calls the platform and CPU specific reset
 handling functions.
 
@@ -1481,7 +1493,9 @@ the returned ``cpu_ops`` is then invoked which executes the required reset
 handling for that CPU and also any errata workarounds enabled by the platform.
 
 It should be defined using the ``cpu_reset_func_{start,end}`` macros and its
-body may only clobber x0 to x14 with x14 being the cpu_rev parameter.
+body may only clobber x0 to x14 with x14 being the cpu_rev parameter. The cpu
+file should also include a call to ``cpu_reset_prologue`` at the start of the
+file for errata to work correctly.
 
 CPU specific power down sequence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1503,6 +1517,19 @@ registered for highest level is invoked.
 At runtime the platform hooks for power down are invoked by the PSCI service to
 perform platform specific operations during a power down sequence, for example
 turning off CCI coherency during a cluster power down.
+
+Newer CPUs include a feature called "powerdown abandon". The feature is based on
+the observation that events like GIC wakeups have a high likelihood of happening
+while the core is in the middle of its powerdown sequence (at ``wfi``). Older
+cores will powerdown and immediately power back up when this happens. To save on
+the work and latency involved, the newer cores will "give up" mid way through if
+no context has been lost yet. This is possible as the powerdown operation is
+lengthy and a large part of it does not lose context.
+
+To cater for this possibility, the powerdown hook will be called a second time
+after a wakeup. The expectation is that the first call will operate as before,
+while the second call will undo anything the first call did. This should be done
+statelessly, for example by toggling the relevant bits.
 
 CPU specific register reporting during crash
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2584,6 +2611,9 @@ are changed within the ``bl31_plat_runtime_setup`` platform hook. The init
 section section can be reclaimed for any data which is accessed after cold
 boot initialization and it is upto the platform to make the decision.
 
+Please note that this will disable inlining for any functions with the __init
+attribute.
+
 .. _firmware_design_pmf:
 
 Performance Measurement Framework
@@ -2891,7 +2921,7 @@ kernel at boot time. These can be found in the ``fdts`` directory.
 
 --------------
 
-*Copyright (c) 2013-2024, Arm Limited and Contributors. All rights reserved.*
+*Copyright (c) 2013-2025, Arm Limited and Contributors. All rights reserved.*
 
 .. _SMCCC: https://developer.arm.com/docs/den0028/latest
 .. _PSCI: https://developer.arm.com/documentation/den0022/latest/

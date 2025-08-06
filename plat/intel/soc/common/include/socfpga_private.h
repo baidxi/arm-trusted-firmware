@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2019-2022, Intel Corporation. All rights reserved.
+ * Copyright (c) 2019-2023, Intel Corporation. All rights reserved.
+ * Copyright (c) 2024, Altera Corporation. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -23,8 +24,8 @@ typedef enum {
 	BOOT_SOURCE_FPGA = 0,
 	BOOT_SOURCE_SDMMC,
 	BOOT_SOURCE_NAND,
-	BOOT_SOURCE_RSVD,
-	BOOT_SOURCE_QSPI
+	BOOT_SOURCE_QSPI,
+	BOOT_SOURCE_RSVD
 } boot_source_type;
 
 /*******************************************************************************
@@ -63,5 +64,7 @@ uint32_t socfpga_get_spsr_for_bl33_entry(void);
 unsigned long socfpga_get_ns_image_entrypoint(void);
 
 void plat_secondary_cpus_bl31_entry(void);
+
+void setup_clusterectlr_el1(void);
 
 #endif /* SOCFPGA_PRIVATE_H */

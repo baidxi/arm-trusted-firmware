@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Arm Limited. All rights reserved.
+ * Copyright (c) 2021-2025, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -9,6 +9,7 @@
 #include <common/bl_common.h>
 #include <cortex_a720.h>
 #include <cpu_macros.S>
+#include <dsu_macros.S>
 #include <plat_macros.S>
 #include "wa_cve_2022_23960_bhb_vector.S"
 
@@ -22,9 +23,34 @@
 #error "Cortex A720 supports only AArch64. Compile with CTX_INCLUDE_AARCH32_REGS=0"
 #endif
 
+cpu_reset_prologue cortex_a720
+
+.global check_erratum_cortex_a720_3699561
+
 #if WORKAROUND_CVE_2022_23960
         wa_cve_2022_23960_bhb_vector_table CORTEX_A720_BHB_LOOP_COUNT, cortex_a720
 #endif /* WORKAROUND_CVE_2022_23960 */
+
+workaround_reset_start cortex_a720, ERRATUM(2792132), ERRATA_A720_2792132
+        sysreg_bit_set CORTEX_A720_CPUACTLR2_EL1, BIT(26)
+workaround_reset_end cortex_a720, ERRATUM(2792132)
+
+check_erratum_ls cortex_a720, ERRATUM(2792132), CPU_REV(0, 1)
+
+workaround_reset_start cortex_a720, ERRATUM(2844092), ERRATA_A720_2844092
+        sysreg_bit_set CORTEX_A720_CPUACTLR4_EL1, BIT(11)
+workaround_reset_end cortex_a720, ERRATUM(2844092)
+
+check_erratum_ls cortex_a720, ERRATUM(2844092), CPU_REV(0, 1)
+
+workaround_reset_start cortex_a720, ERRATUM(2900952), ERRATA_DSU_2900952
+	errata_dsu_2900952_wa_apply
+workaround_reset_end cortex_a720, ERRATUM(2900952)
+
+check_erratum_custom_start cortex_a720, ERRATUM(2900952)
+	check_errata_dsu_2900952_applies
+	ret
+check_erratum_custom_end cortex_a720, ERRATUM(2900952)
 
 workaround_reset_start cortex_a720, ERRATUM(2926083), ERRATA_A720_2926083
 /* Erratum 2926083 workaround is required only if SPE is enabled */
@@ -60,9 +86,14 @@ workaround_reset_end cortex_a720, CVE(2022, 23960)
 
 check_erratum_chosen cortex_a720, CVE(2022, 23960), WORKAROUND_CVE_2022_23960
 
+add_erratum_entry cortex_a720, ERRATUM(3699561), ERRATA_A720_3699561
+
+check_erratum_ls cortex_a720, ERRATUM(3699561), CPU_REV(0, 2)
+
 cpu_reset_func_start cortex_a720
 	/* Disable speculative loads */
 	msr	SSBS, xzr
+	enable_mpmm
 cpu_reset_func_end cortex_a720
 
 	/* ----------------------------------------------------
@@ -79,8 +110,6 @@ func cortex_a720_core_pwr_dwn
 	isb
 	ret
 endfunc cortex_a720_core_pwr_dwn
-
-errata_report_shim cortex_a720
 
 	/* ---------------------------------------------
 	 * This function provides Cortex A720-specific

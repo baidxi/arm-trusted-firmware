@@ -42,29 +42,37 @@ const mmap_region_t *plat_get_mmap(void)
 /* For saving cpu clock for certain platform */
 uint32_t cpu_clock;
 
-char *board_name_decode(void)
+const char *board_name_decode(void)
 {
+	const char *platform;
+
 	switch (platform_id) {
 	case VERSAL_NET_SPP:
-		return "IPP";
+		platform = "IPP";
+		break;
 	case VERSAL_NET_EMU:
-		return "EMU";
+		platform = "EMU";
+		break;
 	case VERSAL_NET_SILICON:
-		return "Silicon";
+		platform = "Silicon";
+		break;
 	case VERSAL_NET_QEMU:
-		return "QEMU";
+		platform = "QEMU";
+		break;
 	default:
-		return "Unknown";
+		platform = "Unknown";
 	}
+
+	return platform;
 }
 
 void board_detection(void)
 {
-	uint32_t version;
+	uint32_t version_type;
 
-	version = mmio_read_32(PMC_TAP_VERSION);
-	platform_id = FIELD_GET(PLATFORM_MASK, version);
-	platform_version = FIELD_GET(PLATFORM_VERSION_MASK, version);
+	version_type = mmio_read_32(PMC_TAP_VERSION);
+	platform_id = FIELD_GET(PLATFORM_MASK, version_type);
+	platform_version = FIELD_GET(PLATFORM_VERSION_MASK, version_type);
 
 	if (platform_id == VERSAL_NET_QEMU_COSIM) {
 		platform_id = VERSAL_NET_QEMU;

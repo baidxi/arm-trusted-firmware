@@ -35,7 +35,7 @@ TF-A version is given in Makefile, through several macros:
 
 For example, TF-A v2.10 has VERSION_MAJOR=2, VERSION_MINOR=10 and VERSION_PATCH=0.
 
-This VERSION_PATCH macro is only increased for LTS releases.
+This VERSION_PATCH macro is only increased for :ref:`LTS - Long-Term Support` releases.
 
 Upcoming Releases
 ~~~~~~~~~~~~~~~~~
@@ -70,6 +70,12 @@ depending on project requirement and partner feedback.
 +-----------------+---------------------------+------------------------------+
 | v2.11           | 4th week of May '24       | 2nd week of May '24          |
 +-----------------+---------------------------+------------------------------+
+| v2.12           | 4th week of Nov '24       | 2nd week of Nov '24          |
++-----------------+---------------------------+------------------------------+
+| v2.13           | 4th week of May '25       | 2nd week of May '25          |
++-----------------+---------------------------+------------------------------+
+| v2.14           | 4th week of Nov '25       | 2nd week of Nov '25          |
++-----------------+---------------------------+------------------------------+
 
 Removal of Deprecated Interfaces
 --------------------------------
@@ -83,7 +89,7 @@ after which it will be removed.
 |                                | Date        | after   |                                                         |
 |                                |             | Release |                                                         |
 +================================+=============+=========+=========================================================+
-| STM32MP15_OPTEE_RSV_SHM        |     2.10    |   3.0   | OP-TEE manages its own memory on STM32MP15              |
+|                                |             |         |                                                         |
 +--------------------------------+-------------+---------+---------------------------------------------------------+
 
 Removal of Deprecated Drivers
@@ -109,11 +115,11 @@ Populated table provides details about build options that were removed or deprec
 +-----------------------+--------------------------------+
 | Build Option          | Deprecated from TF-A Version   |
 +=======================+================================+
-| CTX_INCLUDE_MTE_REGS  | 2.11                           |
+|                       |                                |
 +-----------------------+--------------------------------+
-| ENABLE_FEAT_MTE       | 2.11                           |
+|                       |                                |
 +-----------------------+--------------------------------+
 
 --------------
 
-*Copyright (c) 2018-2024, Arm Limited and Contributors. All rights reserved.*
+*Copyright (c) 2018-2025, Arm Limited and Contributors. All rights reserved.*

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013-2024, Arm Limited and Contributors. All rights reserved.
+# Copyright (c) 2013-2025, Arm Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -24,7 +24,6 @@ ifeq (${SPM_MM},1)
 endif
 
 include lib/extensions/amu/amu.mk
-include lib/mpmm/mpmm.mk
 
 ifeq (${SPMC_AT_EL3},1)
   $(info Including EL3 SPMC makefile)
@@ -42,23 +41,28 @@ BL31_SOURCES		+=	bl31/bl31_main.c				\
 				bl31/bl31_context_mgmt.c			\
 				bl31/bl31_traps.c				\
 				common/runtime_svc.c				\
-				lib/cpus/aarch64/dsu_helpers.S			\
+				lib/cpus/errata_common.c			\
 				plat/common/aarch64/platform_mp_stack.S		\
 				services/arm_arch_svc/arm_arch_svc_setup.c	\
 				services/std_svc/std_svc_setup.c		\
+				lib/el3_runtime/simd_ctx.c			\
 				${PSCI_LIB_SOURCES}				\
 				${SPMD_SOURCES}					\
 				${SPM_MM_SOURCES}				\
 				${SPMC_SOURCES}					\
 				${SPM_SOURCES}
 
+VENDOR_EL3_SRCS		+=	services/el3/ven_el3_svc.c
+
 ifeq (${ENABLE_PMF}, 1)
-BL31_SOURCES		+=	lib/pmf/pmf_main.c
+BL31_SOURCES		+=	lib/pmf/pmf_main.c				\
+				${VENDOR_EL3_SRCS}
 endif
 
 include lib/debugfs/debugfs.mk
 ifeq (${USE_DEBUGFS},1)
-	BL31_SOURCES	+= $(DEBUGFS_SRCS)
+BL31_SOURCES		+=	${DEBUGFS_SRCS}					\
+				${VENDOR_EL3_SRCS}
 endif
 
 ifeq (${PLATFORM_REPORT_CTX_MEM_USE},1)
@@ -101,8 +105,12 @@ ifneq (${ENABLE_FEAT_AMU},0)
 BL31_SOURCES		+=	${AMU_SOURCES}
 endif
 
-ifeq (${ENABLE_MPMM},1)
-BL31_SOURCES		+=	${MPMM_SOURCES}
+ifneq (${ENABLE_FEAT_FGT2},0)
+BL31_SOURCES		+=	lib/extensions/fgt/fgt2.c
+endif
+
+ifneq (${ENABLE_FEAT_TCR2},0)
+BL31_SOURCES		+=	lib/extensions/tcr/tcr2.c
 endif
 
 ifneq (${ENABLE_SME_FOR_NS},0)
@@ -114,6 +122,10 @@ endif
 
 ifneq (${ENABLE_FEAT_MPAM},0)
 BL31_SOURCES		+=	lib/extensions/mpam/mpam.c
+endif
+
+ifneq (${ENABLE_FEAT_DEBUGV8P9},0)
+BL31_SOURCES		+=	lib/extensions/debug/debugv8p9.c
 endif
 
 ifneq (${ENABLE_TRBE_FOR_NS},0)
@@ -132,6 +144,10 @@ ifneq (${ENABLE_TRF_FOR_NS},0)
 BL31_SOURCES		+=	lib/extensions/trf/aarch64/trf.c
 endif
 
+ifneq (${ENABLE_FEAT_FPMR},0)
+BL31_SOURCES		+=	lib/extensions/fpmr/fpmr.c
+endif
+
 ifeq (${WORKAROUND_CVE_2017_5715},1)
 BL31_SOURCES		+=	lib/cpus/aarch64/wa_cve_2017_5715_bpiall.S	\
 				lib/cpus/aarch64/wa_cve_2017_5715_mmu.S
@@ -148,6 +164,10 @@ BL31_SOURCES		+=	${GPT_LIB_SRCS}					\
 				${RMMD_SOURCES}
 endif
 
+ifeq (${USE_DSU_DRIVER},1)
+BL31_SOURCES		+=	drivers/arm/dsu/dsu.c
+endif
+
 ifeq ($(FEATURE_DETECTION),1)
 BL31_SOURCES		+=	common/feat_detect.c
 endif
@@ -159,6 +179,11 @@ BL31_SOURCES		+=	services/std_svc/drtm/drtm_main.c		\
 				services/std_svc/drtm/drtm_measurements.c	\
 				services/std_svc/drtm/drtm_remediation.c	\
 				${MBEDTLS_SOURCES}
+endif
+
+ifeq (${LFA_SUPPORT},1)
+include services/std_svc/lfa/lfa.mk
+BL31_SOURCES		+=	${LFA_SOURCES}
 endif
 
 ifeq ($(CROS_WIDEVINE_SMC),1)
@@ -184,11 +209,13 @@ $(eval $(call assert_booleans,\
 	CRASH_REPORTING \
 	EL3_EXCEPTION_HANDLING \
 	SDEI_SUPPORT \
+	USE_DSU_DRIVER \
 )))
 
 $(eval $(call add_defines,\
     $(sort \
-        CRASH_REPORTING \
-        EL3_EXCEPTION_HANDLING \
-        SDEI_SUPPORT \
+	CRASH_REPORTING \
+	EL3_EXCEPTION_HANDLING \
+	SDEI_SUPPORT \
+	USE_DSU_DRIVER \
 )))

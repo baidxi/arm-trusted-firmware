@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023-2024, Arm Limited. All rights reserved.
+# Copyright (c) 2023-2025, Arm Limited. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -21,7 +21,7 @@
 # armv8.6-a armv8.7-a armv8.8-a armv8-r armv9-a
 # [...]
 #
-GCC_MARCH_OUTPUT := $(shell $($(ARCH)-cc) -march=foo -Q --help=target -v 2>&1)
+GCC_MARCH_OUTPUT := $(if $($(ARCH)-cc),$(shell $($(ARCH)-cc) -march=foo -Q --help=target -v 2>&1))
 
 # This function is used to find the best march value supported by the given compiler.
 # We try to use `GCC_MARCH_OUTPUT` which has verbose message with supported march values we filter that
@@ -81,6 +81,11 @@ endif # provided-march supported
 endif # not clang
 
 march-directive := -march=${provided-march}
+
+################################################################################
+# Get Architecture Feature Modifiers
+################################################################################
+arch-features		=	${ARM_ARCH_FEATURE}
 
 # Set the compiler's architecture feature modifiers
 ifneq ($(arch-features), none)

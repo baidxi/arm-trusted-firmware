@@ -17,7 +17,9 @@
  ******************************************************************************/
 
 /* Size of cacheable stacks */
+#ifndef PLATFORM_STACK_SIZE
 #define PLATFORM_STACK_SIZE	U(0x440)
+#endif
 
 #define PLATFORM_CORE_COUNT		U(2)
 #define PLAT_MAX_PWR_LVL		U(1)
@@ -62,6 +64,12 @@
 #else
 # define PLAT_ARM_NS_IMAGE_BASE		U(PRELOADED_BL33_BASE)
 #endif
+
+/*******************************************************************************
+ * HIGH and LOW DDR MAX definitions
+ ******************************************************************************/
+#define PLAT_DDR_LOWMEM_MAX		U(0x80000000)
+#define PLAT_DDR_HIGHMEM_MAX		U(0x100000000)
 
 /*******************************************************************************
  * TSP  specific defines.

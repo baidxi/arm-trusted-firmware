@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016-2023, Arm Limited. All rights reserved.
+# Copyright (c) 2016-2025, Arm Limited. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -9,6 +9,9 @@
 # Makefile, after this file is included. This ensures that the former is better
 # poised to handle dependencies, as all build variables would have a default
 # value by then.
+
+# Warning level to give to the compiler
+W				:= 0
 
 # Use T32 by default
 AARCH32_INSTRUCTION_SET		:= T32
@@ -63,6 +66,9 @@ CTX_INCLUDE_AARCH32_REGS	:= 1
 # Include FP registers in cpu context
 CTX_INCLUDE_FPREGS		:= 0
 
+# Include SVE registers in cpu context
+CTX_INCLUDE_SVE_REGS		:= 0
+
 # Debug build
 DEBUG				:= 0
 
@@ -82,9 +88,6 @@ DYN_DISABLE_AUTH		:= 0
 # Enable the Maximum Power Mitigation Mechanism on supporting cores.
 ENABLE_MPMM			:= 0
 
-# Enable MPMM configuration via FCONF.
-ENABLE_MPMM_FCONF		:= 0
-
 # Flag to Enable Position Independant support (PIE)
 ENABLE_PIE			:= 0
 
@@ -102,6 +105,10 @@ ENABLE_STACK_PROTECTOR		:= 0
 
 # Flag to enable exception handling in EL3
 EL3_EXCEPTION_HANDLING		:= 0
+
+# Flag to include all errata for all CPUs TF-A implements workarounds for
+# Its supposed to be used only for testing.
+ENABLE_ERRATA_ALL		:= 0
 
 # By default BL31 encryption disabled
 ENCRYPT_BL31			:= 0
@@ -139,9 +146,18 @@ FW_ENC_STATUS			:= 0
 # For Chain of Trust
 GENERATE_COT			:= 0
 
+# Default number of 512 blocks per bitlock
+RME_GPT_BITLOCK_BLOCK		:= 1
+
+# Default maximum size of GPT contiguous block
+RME_GPT_MAX_BLOCK		:= 512
+
 # Hint platform interrupt control layer that Group 0 interrupts are for EL3. By
 # default, they are for Secure EL1.
 GICV2_G0_FOR_EL3		:= 0
+
+# Generic implementation of a GICvX driver
+USE_GIC_DRIVER			:= 0
 
 # Route NS External Aborts to EL3. Disabled by default; External Aborts are handled
 # by lower ELs.
@@ -149,6 +165,9 @@ HANDLE_EA_EL3_FIRST_NS		:= 0
 
 # Enable Handoff protocol using transfer lists
 TRANSFER_LIST			:= 0
+
+# Enable HOB list to generate boot information
+HOB_LIST			:= 0
 
 # Enables support for the gcc compiler option "-mharden-sls=all".
 # By default, disables all SLS hardening.
@@ -176,6 +195,9 @@ endif
 # Option to build TF with Measured Boot support
 MEASURED_BOOT			:= 0
 
+# Option to build TF with Discrete TPM support
+DISCRETE_TPM			:= 0
+
 # Option to enable the DICE Protection Environmnet as a Measured Boot backend
 DICE_PROTECTION_ENVIRONMENT	:=0
 
@@ -197,6 +219,9 @@ PSCI_EXTENDED_STATE_ID		:= 0
 
 # Enable PSCI OS-initiated mode support
 PSCI_OS_INIT_MODE		:= 0
+
+# SMCCC_ARCH_FEATURE_AVAILABILITY support
+ARCH_FEATURE_AVAILABILITY	:= 0
 
 # By default, BL1 acts as the reset handler, not BL31
 RESET_TO_BL31			:= 0
@@ -230,6 +255,14 @@ SEPARATE_NOBITS_REGION		:= 0
 # Put BL2 NOLOAD sections (.bss, stacks, page tables) in a separate memory
 # region, platform Makefile is free to override this value.
 SEPARATE_BL2_NOLOAD_REGION	:= 0
+
+# Put RW DATA sections (.rwdata) in a separate memory region, which may be
+# discontiguous from the rest of BL31.
+SEPARATE_RWDATA_REGION		:= 0
+
+# Put SIMD context data structures in a separate memory region. Platforms
+# have the choice to put it outside of default BSS region of EL3 firmware.
+SEPARATE_SIMD_SECTION		:= 0
 
 # If the BL31 image initialisation code is recalimed after use for the secondary
 # cores stack
@@ -288,9 +321,6 @@ COT				:= tbbr
 # Use tbbr_oid.h instead of platform_oid.h
 USE_TBBR_DEFS			:= 1
 
-# Build verbosity
-V				:= 0
-
 # Whether to enable D-Cache early during warm boot. This is usually
 # applicable for platforms wherein interconnect programming is not
 # required to enable cache coherency after warm reset (eg: single cluster
@@ -316,13 +346,11 @@ ENABLE_LTO			:= 0
 # CTX_INCLUDE_EL2_REGS.
 CTX_INCLUDE_EL2_REGS		:= 0
 
-# Enable Memory tag extension which is supported for architecture greater
-# than Armv8.5-A
-# By default it is set to "no"
-SUPPORT_STACK_MEMTAG		:= no
-
 # Select workaround for AT speculative behaviour.
 ERRATA_SPECULATIVE_AT		:= 0
+
+# select workaround for SME aborting powerdown
+ERRATA_SME_POWER_DOWN		:= 0
 
 # Trap RAS error record access from Non secure
 RAS_TRAP_NS_ERR_REC_ACCESS	:= 0
@@ -392,3 +420,24 @@ CTX_INCLUDE_MPAM_REGS		:= 0
 
 # Enable context memory usage reporting during BL31 setup.
 PLATFORM_REPORT_CTX_MEM_USE	:= 0
+
+# Enable early console
+EARLY_CONSOLE			:= 0
+
+# Allow platforms to save/restore DSU PMU registers over a power cycle.
+# Disabled by default and must be enabled by individual platforms.
+PRESERVE_DSU_PMU_REGS		:= 0
+
+# Enable RMMD to forward attestation requests from RMM to EL3.
+RMMD_ENABLE_EL3_TOKEN_SIGN	:= 0
+
+# Enable RMMD to program and manage IDE Keys at the PCIe Root Port(RP).
+# This flag is temporary and it is expected once the interface is
+# finalized, this flag will be removed.
+RMMD_ENABLE_IDE_KEY_PROG	:= 0
+
+# Live firmware activation support
+LFA_SUPPORT			:= 0
+
+# Enable support for arm DSU driver.
+USE_DSU_DRIVER			:= 0

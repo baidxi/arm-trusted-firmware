@@ -1,46 +1,49 @@
-# Copyright (c) 2022-2024, Arm Limited. All rights reserved.
+# Copyright (c) 2022-2025, Arm Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
 $(eval $(call add_define,PLATFORM_TESTS))
 
-ifeq (${PLATFORM_TEST},rss-nv-counters)
-    include drivers/arm/rss/rss_comms.mk
+ifeq (${PLATFORM_TEST},rse-nv-counters)
+    include drivers/arm/rse/rse_comms.mk
 
     # Test code.
-    BL31_SOURCES	+=	plat/arm/board/tc/nv_counter_test.c
+    BL31_SOURCES	+=	plat/arm/board/tc/nv_counter_test.c \
+				plat/arm/board/tc/tc_rse_comms.c
 
     # Code under testing.
-    BL31_SOURCES	+=	lib/psa/rss_platform.c \
-				${RSS_COMMS_SOURCES}
+    BL31_SOURCES	+=	lib/psa/rse_platform.c \
+				${RSE_COMMS_SOURCES}
 
     PLAT_INCLUDES	+=	-Iinclude/lib/psa
 
     $(eval $(call add_define,PLATFORM_TEST_NV_COUNTERS))
-else ifeq (${PLATFORM_TEST},rss-rotpk)
-    include drivers/arm/rss/rss_comms.mk
+else ifeq (${PLATFORM_TEST},rse-rotpk)
+    include drivers/arm/rse/rse_comms.mk
 
     # Test code.
-    BL31_SOURCES	+=	plat/arm/board/tc/rotpk_test.c
+    BL31_SOURCES	+=	plat/arm/board/tc/rotpk_test.c \
+				plat/arm/board/tc/tc_rse_comms.c
 
     # Code under testing.
-    BL31_SOURCES	+=	lib/psa/rss_platform.c \
-				${RSS_COMMS_SOURCES}
+    BL31_SOURCES	+=	lib/psa/rse_platform.c \
+				${RSE_COMMS_SOURCES}
 
     PLAT_INCLUDES	+=	-Iinclude/lib/psa
 
     $(eval $(call add_define,PLATFORM_TEST_ROTPK))
 else ifeq (${PLATFORM_TEST},tfm-testsuite)
-    include drivers/arm/rss/rss_comms.mk
+    include drivers/arm/rse/rse_comms.mk
+    include drivers/measured_boot/rse/qcbor.mk
 
     # The variables need to be set to compile the platform test:
     ifeq (${TF_M_TESTS_PATH},)
-        # Example: ../rss/tf-m-tests
+        # Example: ../rse/tf-m-tests
         $(error Error: TF_M_TESTS_PATH not set)
     endif
     ifeq (${TF_M_EXTRAS_PATH},)
-        # Example: ../rss/tf-m-extras
+        # Example: ../rse/tf-m-extras
         $(error Error: TF_M_EXTRAS_PATH not set)
     endif
     ifeq (${MEASUREMENT_VALUE_SIZE},)
@@ -61,25 +64,28 @@ else ifeq (${PLATFORM_TEST},tfm-testsuite)
 					hmac_drbg.c				\
 					psa_crypto.c				\
 					psa_crypto_client.c			\
-					psa_crypto_driver_wrappers.c		\
+					psa_crypto_driver_wrappers_no_static.c	\
 					psa_crypto_hash.c			\
 					psa_crypto_rsa.c			\
 					psa_crypto_ecp.c			\
 					psa_crypto_slot_management.c		\
+					psa_util.c				\
 					)
 
-    BL31_SOURCES	+=	${RSS_COMMS_SOURCES}				\
+    BL31_SOURCES	+=	${RSE_COMMS_SOURCES}				\
 				plat/arm/common/arm_dyn_cfg.c			\
-				${TC_BASE}/rss_ap_tests.c			\
-				${TC_BASE}/rss_ap_testsuites.c			\
-				${TC_BASE}/rss_ap_test_stubs.c			\
+				${TC_BASE}/rse_ap_tests.c			\
+				${TC_BASE}/rse_ap_testsuites.c			\
+				${TC_BASE}/rse_ap_test_stubs.c			\
+				${TC_BASE}/tc_rse_comms.c			\
 				$(TF_M_TESTS_PATH)/tests_reg/test/framework/test_framework.c \
 				$(MEASURED_BOOT_TESTS_PATH)/measured_boot_common.c \
 				$(MEASURED_BOOT_TESTS_PATH)/measured_boot_tests_common.c \
 				$(DELEGATED_ATTEST_TESTS_PATH)/delegated_attest_test.c \
 				drivers/auth/mbedtls/mbedtls_common.c		\
 				lib/psa/measured_boot.c				\
-				lib/psa/delegated_attestation.c
+				lib/psa/delegated_attestation.c			\
+				${QCBOR_SOURCES}
 
     PLAT_INCLUDES	+=	-I$(TF_M_EXTRAS_PATH)/partitions/measured_boot/interface/include \
 				-I$(TF_M_EXTRAS_PATH)/partitions/delegated_attestation/interface/include \
@@ -92,7 +98,8 @@ else ifeq (${PLATFORM_TEST},tfm-testsuite)
 				-Iplat/arm/board/tc				\
 				-Iinclude/drivers/auth/mbedtls			\
 				-Iinclude/drivers/arm				\
-				-Iinclude/lib/psa
+				-Iinclude/lib/psa				\
+				-I${QCBOR_INCLUDES}
 
     # Some of the PSA functions are declared in multiple header files, that
     # triggers this warning.

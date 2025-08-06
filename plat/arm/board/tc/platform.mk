@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024, Arm Limited. All rights reserved.
+# Copyright (c) 2021-2025, Arm Limited. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -10,13 +10,13 @@ TARGET_FLAVOUR			:=	fvp
 TC_DPU_USE_SCMI_CLK		:=	1
 # SCMI power domain control enable
 TC_SCMI_PD_CTRL_EN		:=	1
-# IOMMU: Enable the use of system or individual MMUs
-TC_IOMMU_EN			:=	1
 
 # System setup
 CSS_USE_SCMI_SDS_DRIVER		:=	1
 HW_ASSISTED_COHERENCY		:=	1
 USE_COHERENT_MEM		:=	0
+USE_GIC_DRIVER			:=	3
+USE_DSU_DRIVER			:=	1
 GIC_ENABLE_V4_EXTN		:=      1
 GICV3_SUPPORT_GIC600		:=	1
 override NEED_BL2U		:=	no
@@ -28,13 +28,23 @@ BRANCH_PROTECTION		:=	1
 ENABLE_FEAT_MPAM		:=	1 # default is 2, optimise
 ENABLE_SVE_FOR_NS		:=	2 # to show we use it
 ENABLE_SVE_FOR_SWD		:=	1
+ENABLE_SME_FOR_NS		:=	2
+ENABLE_SME2_FOR_NS		:=	2
+ENABLE_SME_FOR_SWD		:=	1
 ENABLE_TRBE_FOR_NS		:=	1
 ENABLE_SYS_REG_TRACE_FOR_NS	:=	1
 ENABLE_FEAT_AMU			:=	1
-ENABLE_AMU_FCONF		:=	1
 ENABLE_AMU_AUXILIARY_COUNTERS	:=	1
 ENABLE_MPMM			:=	1
-ENABLE_MPMM_FCONF		:=	1
+ENABLE_FEAT_MTE2		:=	2
+ENABLE_SPE_FOR_NS		:=	2
+ENABLE_FEAT_TCR2		:=	2
+
+ifneq ($(filter ${TARGET_PLATFORM}, 3),)
+ENABLE_FEAT_RNG_TRAP		:=	0
+else
+ENABLE_FEAT_RNG_TRAP		:=	1
+endif
 
 CTX_INCLUDE_AARCH32_REGS	:=	0
 
@@ -43,71 +53,98 @@ ifeq (${SPD},spmd)
 	CTX_INCLUDE_PAUTH_REGS	:=	1
 endif
 
+TRNG_SUPPORT			:=	1
 
-ifneq ($(shell expr $(TARGET_PLATFORM) \<= 1), 0)
-        $(warning Platform ${PLAT}$(TARGET_PLATFORM) is deprecated. \
-          Some of the features might not work as expected)
+# TC RESOLUTION - LIST OF VALID OPTIONS (this impacts only FVP)
+TC_RESOLUTION_OPTIONS		:= 	640x480p60 \
+					1920x1080p60
+# Set default to the 640x480p60 resolution mode
+TC_RESOLUTION ?= $(firstword $(TC_RESOLUTION_OPTIONS))
+
+# Check resolution option for FVP
+ifneq ($(filter ${TARGET_FLAVOUR}, fvp),)
+ifeq ($(filter ${TC_RESOLUTION}, ${TC_RESOLUTION_OPTIONS}),)
+        $(error TC_RESOLUTION is ${TC_RESOLUTION}, it must be: ${TC_RESOLUTION_OPTIONS})
+endif
 endif
 
-ifeq ($(shell expr $(TARGET_PLATFORM) \<= 3), 0)
-        $(error TARGET_PLATFORM must be less than or equal to 3)
+ifneq ($(shell expr $(TARGET_PLATFORM) \<= 2), 0)
+        $(error Platform ${PLAT}$(TARGET_PLATFORM) is no longer available.)
+endif
+
+ifeq ($(shell expr $(TARGET_PLATFORM) \<= 4), 0)
+        $(error TARGET_PLATFORM must be less than or equal to 4)
 endif
 
 ifeq ($(filter ${TARGET_FLAVOUR}, fvp fpga),)
         $(error TARGET_FLAVOUR must be fvp or fpga)
 endif
 
+# Support for loading FS Image to DRAM
+TC_FPGA_FS_IMG_IN_RAM := 0
+
+# Support Loading of FIP image to DRAM
+TC_FPGA_FIP_IMG_IN_RAM := 0
+
+# Use simple panel instead of vencoder with DPU
+TC_DPU_USE_SIMPLE_PANEL := 0
+
 $(eval $(call add_defines, \
 	TARGET_PLATFORM \
 	TARGET_FLAVOUR_$(call uppercase,${TARGET_FLAVOUR}) \
+	TC_RESOLUTION_$(call uppercase,${TC_RESOLUTION}) \
 	TC_DPU_USE_SCMI_CLK \
 	TC_SCMI_PD_CTRL_EN \
-	TC_IOMMU_EN \
+	TC_FPGA_FS_IMG_IN_RAM \
+	TC_FPGA_FIP_IMG_IN_RAM \
+	TC_DPU_USE_SIMPLE_PANEL \
 ))
 
 CSS_LOAD_SCP_IMAGES	:=	1
 
-# Include GICv3 driver files
-include drivers/arm/gic/v3/gicv3.mk
+# Save DSU PMU registers on cluster off and restore them on cluster on
+PRESERVE_DSU_PMU_REGS		:= 1
 
-ENT_GIC_SOURCES		:=	${GICV3_SOURCES}		\
-				plat/common/plat_gicv3.c	\
-				plat/arm/common/arm_gicv3.c
+PLAT_MHU		:= MHUv3
 
 TC_BASE	=	plat/arm/board/tc
 
 PLAT_INCLUDES		+=	-I${TC_BASE}/include/ \
 				-I${TC_BASE}/fdts/
 
-# CPU libraries for TARGET_PLATFORM=1
-ifeq (${TARGET_PLATFORM}, 1)
-TC_CPU_SOURCES	+=	lib/cpus/aarch64/cortex_a510.S \
-			lib/cpus/aarch64/cortex_a715.S \
-			lib/cpus/aarch64/cortex_x3.S
-endif
-
-# CPU libraries for TARGET_PLATFORM=2
-ifeq (${TARGET_PLATFORM}, 2)
-TC_CPU_SOURCES	+=	lib/cpus/aarch64/cortex_a520.S \
-			lib/cpus/aarch64/cortex_a720.S \
-			lib/cpus/aarch64/cortex_x4.S
-endif
-
 # CPU libraries for TARGET_PLATFORM=3
 ifeq (${TARGET_PLATFORM}, 3)
+ERRATA_A520_2938996	:=	1
+
 TC_CPU_SOURCES	+=	lib/cpus/aarch64/cortex_a520.S \
-			lib/cpus/aarch64/cortex_chaberton.S \
-			lib/cpus/aarch64/cortex_blackhawk.S
+			lib/cpus/aarch64/cortex_a725.S \
+			lib/cpus/aarch64/cortex_x925.S
 endif
 
-INTERCONNECT_SOURCES	:=	${TC_BASE}/tc_interconnect.c
+# CPU libraries for TARGET_PLATFORM=4
+ifeq (${TARGET_PLATFORM}, 4)
+# prevent CME related wakups
+ERRATA_SME_POWER_DOWN := 1
+TC_CPU_SOURCES	+=	lib/cpus/aarch64/cortex_gelas.S \
+			lib/cpus/aarch64/nevis.S \
+			lib/cpus/aarch64/travis.S
+endif
+
+INTERCONNECT_SOURCES	:=	${TC_BASE}/tc_interconnect.c \
+				plat/arm/common/arm_ni.c
 
 PLAT_BL_COMMON_SOURCES	+=	${TC_BASE}/tc_plat.c	\
 				${TC_BASE}/include/tc_helpers.S
 
+
+ifneq (${ENABLE_STACK_PROTECTOR},0)
+PLAT_BL_COMMON_SOURCES	+=	${TC_BASE}/tc_stack_protector.c
+endif
+
 BL1_SOURCES		+=	${INTERCONNECT_SOURCES}	\
 				${TC_CPU_SOURCES}	\
 				${TC_BASE}/tc_trusted_boot.c	\
+				${TC_BASE}/tc_bl1_setup.c \
 				${TC_BASE}/tc_err.c	\
 				drivers/arm/sbsa/sbsa.c
 
@@ -117,16 +154,15 @@ BL2_SOURCES		+=	${TC_BASE}/tc_security.c	\
 				${TC_BASE}/tc_bl2_setup.c		\
 				lib/utils/mem_region.c			\
 				drivers/arm/tzc/tzc400.c		\
-				plat/arm/common/arm_tzc400.c		\
 				plat/arm/common/arm_nor_psci_mem_protect.c
 
 BL31_SOURCES		+=	${INTERCONNECT_SOURCES}	\
 				${TC_CPU_SOURCES}	\
-				${ENT_GIC_SOURCES}			\
 				${TC_BASE}/tc_bl31_setup.c	\
 				${TC_BASE}/tc_topology.c	\
 				lib/fconf/fconf.c			\
 				lib/fconf/fconf_dyn_cfg_getter.c	\
+				drivers/arm/dsu/dsu.c			\
 				drivers/cfi/v2m/v2m_flash.c		\
 				lib/utils/mem_region.c			\
 				plat/arm/common/arm_nor_psci_mem_protect.c	\
@@ -162,7 +198,7 @@ $(eval $(call TOOL_ADD_PAYLOAD,${TC_TOS_FW_CONFIG},--tos-fw-config,${TC_TOS_FW_C
 endif
 
 #Device tree
-TC_HW_CONFIG_DTS	:=	fdts/tc.dts
+TC_HW_CONFIG_DTS	:=	fdts/${PLAT}${TARGET_PLATFORM}.dts
 TC_HW_CONFIG		:=	${BUILD_PLAT}/fdts/${PLAT}.dtb
 FDT_SOURCES		+=	${TC_HW_CONFIG_DTS}
 $(eval TC_HW_CONFIG	:=	${BUILD_PLAT}/$(patsubst %.dts,%.dtb,$(TC_HW_CONFIG_DTS)))
@@ -170,23 +206,26 @@ $(eval TC_HW_CONFIG	:=	${BUILD_PLAT}/$(patsubst %.dts,%.dtb,$(TC_HW_CONFIG_DTS))
 # Add the HW_CONFIG to FIP and specify the same to certtool
 $(eval $(call TOOL_ADD_PAYLOAD,${TC_HW_CONFIG},--hw-config,${TC_HW_CONFIG}))
 
+$(info Including rse_comms.mk)
+include drivers/arm/rse/rse_comms.mk
+
+BL1_SOURCES	+=	${RSE_COMMS_SOURCES} \
+			plat/arm/board/tc/tc_rse_comms.c
+BL2_SOURCES	+=	${RSE_COMMS_SOURCES} \
+			plat/arm/board/tc/tc_rse_comms.c
+BL31_SOURCES	+=	${RSE_COMMS_SOURCES} \
+			plat/arm/board/tc/tc_rse_comms.c \
+			lib/psa/rse_platform.c
+
 # Include Measured Boot makefile before any Crypto library makefile.
 # Crypto library makefile may need default definitions of Measured Boot build
 # flags present in Measured Boot makefile.
-$(info Including rss_comms.mk)
 ifeq (${MEASURED_BOOT},1)
-        $(info Including rss_comms.mk)
-        include drivers/arm/rss/rss_comms.mk
-
-	BL1_SOURCES	+=	${RSS_COMMS_SOURCES}
-	BL2_SOURCES	+=	${RSS_COMMS_SOURCES}
-	PLAT_INCLUDES	+=	-Iinclude/lib/psa
-
     ifeq (${DICE_PROTECTION_ENVIRONMENT},1)
         $(info Including qcbor.mk)
-        include drivers/measured_boot/rss/qcbor.mk
+        include drivers/measured_boot/rse/qcbor.mk
         $(info Including dice_prot_env.mk)
-        include drivers/measured_boot/rss/dice_prot_env.mk
+        include drivers/measured_boot/rse/dice_prot_env.mk
 
 	BL1_SOURCES	+=	${QCBOR_SOURCES} \
 				${DPE_SOURCES} \
@@ -206,8 +245,8 @@ ifeq (${MEASURED_BOOT},1)
 	PLAT_INCLUDES	+=	-I${QCBOR_INCLUDES} \
 				-Iinclude/lib/dice
     else
-        $(info Including rss_measured_boot.mk)
-        include drivers/measured_boot/rss/rss_measured_boot.mk
+        $(info Including rse_measured_boot.mk)
+        include drivers/measured_boot/rse/rse_measured_boot.mk
 
 	BL1_SOURCES	+=	${MEASURED_BOOT_SOURCES} \
 				plat/arm/board/tc/tc_common_measured_boot.c \
@@ -221,8 +260,10 @@ ifeq (${MEASURED_BOOT},1)
     endif
 endif
 
-ifeq (${TRNG_SUPPORT},1)
-	BL31_SOURCES	+=	plat/arm/board/tc/tc_trng.c
+BL31_SOURCES	+=	plat/arm/board/tc/tc_trng.c
+
+ifneq (${ENABLE_FEAT_RNG_TRAP},0)
+	BL31_SOURCES	+=	plat/arm/board/tc/tc_rng_trap.c
 endif
 
 ifneq (${PLATFORM_TEST},)
@@ -236,5 +277,4 @@ endif
 
 include plat/arm/common/arm_common.mk
 include plat/arm/css/common/css_common.mk
-include plat/arm/soc/common/soc_css.mk
 include plat/arm/board/common/board_common.mk

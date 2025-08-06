@@ -34,7 +34,7 @@
 			debug_name = "cactus-primary";
 			load_address = <0x7000000>;
 			vcpu_count = <8>;
-			mem_size = <1048576>;
+			mem_size = <0x100000>;
 			/*
 			 * Platform specific SiP SMC call handled at EL3. Used
 			 * to pend an interrupt for testing purpose.
@@ -46,21 +46,21 @@
 			debug_name = "cactus-secondary";
 			load_address = <0x7100000>;
 			vcpu_count = <8>;
-			mem_size = <1048576>;
+			mem_size = <0x100000>;
 		};
 		vm3 {
 			is_ffa_partition;
 			debug_name = "cactus-tertiary";
 			load_address = <0x7200000>;
 			vcpu_count = <1>;
-			mem_size = <1048576>;
+			mem_size = <0x300000>;
 		};
 		vm4 {
 			is_ffa_partition;
 			debug_name = "ivy";
 			load_address = <0x7600000>;
 			vcpu_count = <1>;
-			mem_size = <1048576>;
+			mem_size = <0x100000>;
 		};
 	};
 
@@ -92,16 +92,22 @@
 
 	memory@1 {
 		device_type = "ns-memory";
-		reg = <0x00008800 0x80000000 0x0 0x7f000000>,
-		      <0x0 0x88000000 0x0 0x10000000>;
+		reg = <0x0 0x80000000 0x0 0x7c000000>,
+		      <0x8 0x80000000 0x1 0x80000000>,
+		      <0x00008800 0x80000000 0x0 0x7f000000>;
 	};
 
 	memory@2 {
 		device_type = "device-memory";
-		reg = <0x0 0x1c090000 0x0 0x40000>, /* UART */
+		reg = <0x0 0x1c0b0000 0x0 0x20000>, /* UART 2-3 */
 		      <0x0 0x2bfe0000 0x0 0x20000>, /* SMMUv3TestEngine */
 		      <0x0 0x2a490000 0x0 0x20000>, /* SP805 Trusted Watchdog */
 		      <0x0 0x1c130000 0x0 0x10000>; /* Virtio block device */
+	};
+
+	memory@3 {
+		device_type = "ns-device-memory";
+		reg = <0x0 0x1c090000 0x0 0x20000>; /* UART 0-1 */
 	};
 
 

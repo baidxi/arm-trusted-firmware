@@ -25,9 +25,9 @@ endif
 
 # Specify mbed TLS configuration file
 ifeq (${PSA_CRYPTO},1)
-  MBEDTLS_CONFIG_FILE    ?=    "<drivers/auth/mbedtls/psa_mbedtls_config.h>"
+  MBEDTLS_CONFIG_FILE    ?=    "<drivers/auth/mbedtls/default_psa_mbedtls_config.h>"
 else
-  MBEDTLS_CONFIG_FILE    ?=    "<drivers/auth/mbedtls/mbedtls_config-3.h>"
+  MBEDTLS_CONFIG_FILE    ?=    "<drivers/auth/mbedtls/default_mbedtls_config.h>"
 endif
 
 $(eval $(call add_define,MBEDTLS_CONFIG_FILE))
@@ -41,7 +41,6 @@ LIBMBEDTLS_SRCS		+= $(addprefix ${MBEDTLS_DIR}/library/,		\
 					cipher.c 			\
 					cipher_wrap.c 			\
 					constant_time.c			\
-					hash_info.c			\
 					memory_buffer_alloc.c		\
 					oid.c 				\
 					platform.c 			\
@@ -51,6 +50,7 @@ LIBMBEDTLS_SRCS		+= $(addprefix ${MBEDTLS_DIR}/library/,		\
 					gcm.c 				\
 					md.c				\
 					pk.c 				\
+					pk_ecc.c 			\
 					pk_wrap.c 			\
 					pkparse.c 			\
 					pkwrite.c 			\
@@ -65,22 +65,17 @@ LIBMBEDTLS_SRCS		+= $(addprefix ${MBEDTLS_DIR}/library/,		\
 					x509_crt.c 			\
 					)
 
-# Currently on Mbedtls-3 there is outstanding bug due to usage
-# of redundant declaration[1], So disable redundant-decls
-# compilation flag to avoid compilation error when compiling with
-# Mbedtls-3.
-# [1]: https://github.com/Mbed-TLS/mbedtls/issues/6910
-LIBMBEDTLS_CFLAGS += -Wno-error=redundant-decls
-
 ifeq (${PSA_CRYPTO},1)
 LIBMBEDTLS_SRCS         += $(addprefix ${MBEDTLS_DIR}/library/,    	\
 					psa_crypto.c                   	\
 					psa_crypto_client.c            	\
-					psa_crypto_driver_wrappers.c   	\
 					psa_crypto_hash.c              	\
 					psa_crypto_rsa.c               	\
 					psa_crypto_ecp.c               	\
 					psa_crypto_slot_management.c   	\
+					psa_crypto_aead.c               \
+					psa_crypto_cipher.c             \
+					psa_util.c			\
 					)
 endif
 
@@ -122,6 +117,14 @@ else ifeq (${HASH_ALG}, sha512)
     TF_MBEDTLS_HASH_ALG_ID	:=	TF_MBEDTLS_SHA512
 else
     TF_MBEDTLS_HASH_ALG_ID	:=	TF_MBEDTLS_SHA256
+endif
+
+ifeq (${MBOOT_EL_HASH_ALG}, sha256)
+    $(eval $(call add_define,TF_MBEDTLS_MBOOT_USE_SHA256))
+else ifeq (${MBOOT_EL_HASH_ALG}, sha384)
+    $(eval $(call add_define,TF_MBEDTLS_MBOOT_USE_SHA384))
+else ifeq (${MBOOT_EL_HASH_ALG}, sha512)
+    $(eval $(call add_define,TF_MBEDTLS_MBOOT_USE_SHA512))
 endif
 
 ifeq (${TF_MBEDTLS_KEY_ALG},ecdsa)

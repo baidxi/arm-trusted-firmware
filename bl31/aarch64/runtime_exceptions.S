@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2024, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2025, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -229,7 +229,6 @@ vector_entry sync_exception_aarch64
 	save_x30
 	apply_at_speculative_wa
 	sync_and_handle_pending_serror
-	unmask_async_ea
 	handle_sync_exception
 end_vector_entry sync_exception_aarch64
 
@@ -237,7 +236,6 @@ vector_entry irq_aarch64
 	save_x30
 	apply_at_speculative_wa
 	sync_and_handle_pending_serror
-	unmask_async_ea
 	b	handle_interrupt_exception
 end_vector_entry irq_aarch64
 
@@ -245,7 +243,6 @@ vector_entry fiq_aarch64
 	save_x30
 	apply_at_speculative_wa
 	sync_and_handle_pending_serror
-	unmask_async_ea
 	b 	handle_interrupt_exception
 end_vector_entry fiq_aarch64
 
@@ -258,7 +255,6 @@ vector_entry serror_aarch64
 	save_x30
 	apply_at_speculative_wa
 	sync_and_handle_pending_serror
-	unmask_async_ea
 	b	handle_lower_el_async_ea
 #else
 	b	report_unhandled_exception
@@ -279,7 +275,6 @@ vector_entry sync_exception_aarch32
 	save_x30
 	apply_at_speculative_wa
 	sync_and_handle_pending_serror
-	unmask_async_ea
 	handle_sync_exception
 end_vector_entry sync_exception_aarch32
 
@@ -287,7 +282,6 @@ vector_entry irq_aarch32
 	save_x30
 	apply_at_speculative_wa
 	sync_and_handle_pending_serror
-	unmask_async_ea
 	b	handle_interrupt_exception
 end_vector_entry irq_aarch32
 
@@ -295,7 +289,6 @@ vector_entry fiq_aarch32
 	save_x30
 	apply_at_speculative_wa
 	sync_and_handle_pending_serror
-	unmask_async_ea
 	b	handle_interrupt_exception
 end_vector_entry fiq_aarch32
 
@@ -308,7 +301,6 @@ vector_entry serror_aarch32
 	save_x30
 	apply_at_speculative_wa
 	sync_and_handle_pending_serror
-	unmask_async_ea
 	b	handle_lower_el_async_ea
 #else
 	b	report_unhandled_exception
@@ -347,11 +339,6 @@ sync_handler64:
 	 * Also save PMCR_EL0 and  set the PSTATE to a known state.
 	 */
 	bl	prepare_el3_entry
-
-#if ENABLE_PAUTH
-	/* Load and program APIAKey firmware key */
-	bl	pauth_load_bl31_apiakey
-#endif
 
 	/*
 	 * Populate the parameters for the SMC handler.
@@ -450,7 +437,7 @@ sync_handler64:
 	 *
 	 * handler = (base + off) + (index << log2(size))
 	 */
-	adr	x11, (__RT_SVC_DESCS_START__ + RT_SVC_DESC_HANDLE)
+	adr_l	x11, (__RT_SVC_DESCS_START__ + RT_SVC_DESC_HANDLE)
 	lsl	w10, w15, #RT_SVC_SIZE_LOG2
 	ldr	x15, [x11, w10, uxtw]
 
@@ -543,11 +530,6 @@ func handle_interrupt_exception
 	 * Also save PMCR_EL0 and  set the PSTATE to a known state.
 	 */
 	bl	prepare_el3_entry
-
-#if ENABLE_PAUTH
-	/* Load and program APIAKey firmware key */
-	bl	pauth_load_bl31_apiakey
-#endif
 
 	/* Save the EL3 system registers needed to return from this exception */
 	mrs	x0, spsr_el3

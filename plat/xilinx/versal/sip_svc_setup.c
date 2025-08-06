@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2021, Arm Limited and Contributors. All rights reserved.
- * Copyright (c) 2022-2023, Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Advanced Micro Devices, Inc. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -13,6 +13,7 @@
 #include <common/runtime_svc.h>
 #include <tools_share/uuid.h>
 
+#include <custom_svc.h>
 #include "ipi_mailbox_svc.h"
 #include "pm_svc_main.h"
 
@@ -22,7 +23,7 @@
 
 /* SiP Service Calls version numbers */
 #define SIP_SVC_VERSION_MAJOR	U(0)
-#define SIP_SVC_VERSION_MINOR	U(1)
+#define SIP_SVC_VERSION_MINOR	U(2)
 
 /* These macros are used to identify PM calls from the SMC function ID */
 #define SIP_FID_MASK	GENMASK(23, 16)
@@ -68,19 +69,19 @@ static int32_t sip_svc_setup(void)
  *
  * Return: Unused.
  */
-uintptr_t sip_svc_smc_handler(uint32_t smc_fid,
-			     u_register_t x1,
-			     u_register_t x2,
-			     u_register_t x3,
-			     u_register_t x4,
-			     void *cookie,
-			     void *handle,
-			     u_register_t flags)
+static uintptr_t sip_svc_smc_handler(uint32_t smc_fid,
+				u_register_t x1,
+				u_register_t x2,
+				u_register_t x3,
+				u_register_t x4,
+				void *cookie,
+				void *handle,
+				u_register_t flags)
 {
 	VERBOSE("SMCID: 0x%08x, x1: 0x%016" PRIx64 ", x2: 0x%016" PRIx64 ", x3: 0x%016" PRIx64 ", x4: 0x%016" PRIx64 "\n",
 		smc_fid, x1, x2, x3, x4);
 
-	if (smc_fid & SIP_FID_MASK) {
+	if ((smc_fid & SIP_FID_MASK) != 0U) {
 		WARN("SMC out of SiP assinged range: 0x%x\n", smc_fid);
 		SMC_RET1(handle, SMC_UNK);
 	}
@@ -105,6 +106,11 @@ uintptr_t sip_svc_smc_handler(uint32_t smc_fid,
 	case VERSAL_SIP_SVC_VERSION:
 		SMC_RET2(handle, SIP_SVC_VERSION_MAJOR, SIP_SVC_VERSION_MINOR);
 
+	case SOC_SIP_SVC_CUSTOM:
+	case SOC_SIP_SVC64_CUSTOM:
+		return custom_smc_handler(smc_fid, x1, x2, x3, x4, cookie,
+					  handle, flags);
+
 	default:
 		WARN("Unimplemented SiP Service Call: 0x%x\n", smc_fid);
 		SMC_RET1(handle, SMC_UNK);
@@ -116,6 +122,6 @@ DECLARE_RT_SVC(
 		sip_svc,
 		OEN_SIP_START,
 		OEN_SIP_END,
-		SMC_TYPE_FAST,
+		(uint8_t)SMC_TYPE_FAST,
 		sip_svc_setup,
 		sip_svc_smc_handler);

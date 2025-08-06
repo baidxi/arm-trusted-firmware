@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2023, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2016-2024, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -111,18 +111,18 @@
 #define ID_DFR0_PERFMON_PMUV3P5		U(6)
 #define ID_DFR0_COPTRC_SHIFT		U(12)
 #define ID_DFR0_COPTRC_MASK		U(0xf)
-#define ID_DFR0_COPTRC_SUPPORTED	U(1)
+#define COPTRC_IMPLEMENTED		U(1)
 #define ID_DFR0_COPTRC_LENGTH		U(4)
 #define ID_DFR0_TRACEFILT_SHIFT		U(28)
 #define ID_DFR0_TRACEFILT_MASK		U(0xf)
-#define ID_DFR0_TRACEFILT_SUPPORTED	U(1)
+#define TRACEFILT_IMPLEMENTED		U(1)
 #define ID_DFR0_TRACEFILT_LENGTH	U(4)
 
 /* ID_DFR1_EL1 definitions */
 #define ID_DFR1_MTPMU_SHIFT	U(0)
 #define ID_DFR1_MTPMU_MASK	U(0xf)
-#define ID_DFR1_MTPMU_SUPPORTED	U(1)
-#define ID_DFR1_MTPMU_DISABLED	U(15)
+#define MTPMU_IMPLEMENTED	U(1)
+#define MTPMU_NOT_IMPLEMENTED	U(15)
 
 /* ID_MMFR3 definitions */
 #define ID_MMFR3_PAN_SHIFT	U(16)
@@ -141,14 +141,13 @@
 #define ID_PFR0_AMU_SHIFT	U(20)
 #define ID_PFR0_AMU_LENGTH	U(4)
 #define ID_PFR0_AMU_MASK	U(0xf)
-#define ID_PFR0_AMU_NOT_SUPPORTED	U(0x0)
 #define ID_PFR0_AMU_V1		U(0x1)
 #define ID_PFR0_AMU_V1P1	U(0x2)
 
 #define ID_PFR0_DIT_SHIFT	U(24)
 #define ID_PFR0_DIT_LENGTH	U(4)
 #define ID_PFR0_DIT_MASK	U(0xf)
-#define ID_PFR0_DIT_SUPPORTED	(U(1) << ID_PFR0_DIT_SHIFT)
+#define DIT_IMPLEMENTED		(U(1) << ID_PFR0_DIT_SHIFT)
 
 /* ID_PFR1 definitions */
 #define ID_PFR1_VIRTEXT_SHIFT	U(12)
@@ -166,7 +165,7 @@
 /* ID_PFR2 definitions */
 #define ID_PFR2_SSBS_SHIFT	U(4)
 #define ID_PFR2_SSBS_MASK	U(0xf)
-#define SSBS_UNAVAILABLE	U(0)
+#define SSBS_NOT_IMPLEMENTED	U(0)
 
 /* SCTLR definitions */
 #define SCTLR_RES1_DEF		((U(1) << 23) | (U(1) << 22) | (U(1) << 4) | \
@@ -698,8 +697,7 @@
 /* PAR fields */
 #define PAR_F_SHIFT	U(0)
 #define PAR_F_MASK	ULL(0x1)
-#define PAR_ADDR_SHIFT	U(12)
-#define PAR_ADDR_MASK	(BIT_64(40) - ULL(1)) /* 40-bits-wide page address */
+#define PAR_ADDR_MASK	GENMASK_64(39, 12) /* 28-bits-wide page address */
 
 /*******************************************************************************
  * Definitions for system register interface to AMU for FEAT_AMUv1
@@ -763,7 +761,7 @@
 
 /* AMCNTENSET0 definitions */
 #define AMCNTENSET0_Pn_SHIFT	U(0)
-#define AMCNTENSET0_Pn_MASK	U(0xffff)
+#define AMCNTENSET0_Pn_MASK	U(0xf)
 
 /* AMCNTENSET1 definitions */
 #define AMCNTENSET1_Pn_SHIFT	U(0)
@@ -771,7 +769,7 @@
 
 /* AMCNTENCLR0 definitions */
 #define AMCNTENCLR0_Pn_SHIFT	U(0)
-#define AMCNTENCLR0_Pn_MASK	U(0xffff)
+#define AMCNTENCLR0_Pn_MASK	U(0xf)
 
 /* AMCNTENCLR1 definitions */
 #define AMCNTENCLR1_Pn_SHIFT	U(0)
@@ -796,7 +794,21 @@
 /*******************************************************************************
  * Definitions for DynamicIQ Shared Unit registers
  ******************************************************************************/
-#define CLUSTERPWRDN	p15, 0, c15, c3, 6
+#define CLUSTERPWRDN		p15, 0, c15, c3, 6
+#define CLUSTERPMCR		p15, 0, c15, c5, 0
+#define CLUSTERPMCNTENSET	p15, 0, c15, c5, 1
+#define CLUSTERPMCCNTR		p15, 0, c15, c6, 0
+#define CLUSTERPMOVSSET		p15, 0, c15, c5, 3
+#define CLUSTERPMOVSCLR		p15, 0, c15, c5, 4
+#define CLUSTERPMSELR		p15, 0, c15, c5, 5
+#define CLUSTERPMXEVTYPER	p15, 0,	c15, c6, 1
+#define CLUSTERPMXEVCNTR	p15, 0, c15, c6, 2
+
+/* CLUSTERPMCR register definitions */
+#define CLUSTERPMCR_E_BIT	BIT(0)
+#define CLUSTERPMCR_N_SHIFT	U(11)
+#define CLUSTERPMCR_N_MASK	U(0x1f)
+
 
 /* CLUSTERPWRDN register definitions */
 #define DSU_CLUSTER_PWR_OFF	0

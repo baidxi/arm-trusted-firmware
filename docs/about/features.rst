@@ -127,8 +127,8 @@ message.
 Additionally the following libraries are marked experimental when included
 in a platform:
 
--  MPU translation library ``lib/xlat_mpu``
--  RSS comms driver ``drivers/arm/rss``
+-  RSE comms driver ``drivers/arm/rse``
+-  GICv5 driver ``drivers/arm/gicv5`` via ``USE_GIC_DRIVER=5``
 
 Still to come
 -------------
@@ -151,4 +151,4 @@ Still to come
 
 --------------
 
-*Copyright (c) 2019-2023, Arm Limited. All rights reserved.*
+*Copyright (c) 2019-2025, Arm Limited. All rights reserved.*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2024, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2025, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -19,12 +19,11 @@
 #include <common/fdt_fixup.h>
 #include <common/fdt_wrappers.h>
 #include <lib/optee_utils.h>
-#include <lib/transfer_list.h>
+#if TRANSFER_LIST
+#include <transfer_list.h>
+#endif
 #include <lib/utils.h>
 #include <plat/common/platform.h>
-#if ENABLE_RME
-#include <qemu_pas_def.h>
-#endif
 
 #include "qemu_private.h"
 
@@ -53,7 +52,7 @@
 
 /* Data structure which holds the extents of the trusted SRAM for BL2 */
 static meminfo_t bl2_tzram_layout __aligned(CACHE_WRITEBACK_GRANULE);
-static struct transfer_list_header *bl2_tl;
+static struct transfer_list_header __maybe_unused *bl2_tl;
 
 void bl2_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 			       u_register_t arg2, u_register_t arg3)
@@ -84,8 +83,9 @@ static void update_dt(void)
 #endif
 	int ret;
 	void *fdt = (void *)(uintptr_t)ARM_PRELOADED_DTB_BASE;
+	void *dst = plat_qemu_dt_runtime_address();
 
-	ret = fdt_open_into(fdt, fdt, PLAT_QEMU_DT_MAX_SIZE);
+	ret = fdt_open_into(fdt, dst, PLAT_QEMU_DT_MAX_SIZE);
 	if (ret < 0) {
 		ERROR("Invalid Device Tree at %p: error %d\n", fdt, ret);
 		return;
@@ -150,53 +150,6 @@ void qemu_bl2_sync_transfer_list(void)
 #endif
 }
 
-#if ENABLE_RME
-static void bl2_plat_gpt_setup(void)
-{
-	/*
-	 * The GPT library might modify the gpt regions structure to optimize
-	 * the layout, so the array cannot be constant.
-	 */
-	pas_region_t pas_regions[] = {
-		QEMU_PAS_ROOT,
-		QEMU_PAS_SECURE,
-		QEMU_PAS_GPTS,
-		QEMU_PAS_NS0,
-		QEMU_PAS_REALM,
-		QEMU_PAS_NS1,
-	};
-
-	/*
-	 * Initialize entire protected space to GPT_GPI_ANY. With each L0 entry
-	 * covering 1GB (currently the only supported option), then covering
-	 * 256TB of RAM (48-bit PA) would require a 2MB L0 region. At the
-	 * moment we use a 8KB table, which covers 1TB of RAM (40-bit PA).
-	 */
-	if (gpt_init_l0_tables(GPCCR_PPS_1TB, PLAT_QEMU_L0_GPT_BASE,
-			       PLAT_QEMU_L0_GPT_SIZE) < 0) {
-		ERROR("gpt_init_l0_tables() failed!\n");
-		panic();
-	}
-
-	/* Carve out defined PAS ranges. */
-	if (gpt_init_pas_l1_tables(GPCCR_PGS_4K,
-				   PLAT_QEMU_L1_GPT_BASE,
-				   PLAT_QEMU_L1_GPT_SIZE,
-				   pas_regions,
-				   (unsigned int)(sizeof(pas_regions) /
-						  sizeof(pas_region_t))) < 0) {
-		ERROR("gpt_init_pas_l1_tables() failed!\n");
-		panic();
-	}
-
-	INFO("Enabling Granule Protection Checks\n");
-	if (gpt_enable() < 0) {
-		ERROR("gpt_enable() failed!\n");
-		panic();
-	}
-}
-#endif
-
 void bl2_plat_arch_setup(void)
 {
 	const mmap_region_t bl_regions[] = {
@@ -217,11 +170,8 @@ void bl2_plat_arch_setup(void)
 
 #if ENABLE_RME
 	/* BL2 runs in EL3 when RME enabled. */
-	assert(get_armv9_2_feat_rme_support() != 0U);
+	assert(is_feat_rme_present());
 	enable_mmu_el3(0);
-
-	/* Initialise and enable granule protection after MMU. */
-	bl2_plat_gpt_setup();
 #else /* ENABLE_RME */
 
 #ifdef __aarch64__
@@ -356,12 +306,20 @@ static int qemu_bl2_handle_post_image_load(unsigned int image_id)
 	case BL31_IMAGE_ID:
 		/*
 		 * arg0 is a bl_params_t reserved for bl31_early_platform_setup2
-		 * we just need arg1 and arg3 for BL31 to update th TL from S
+		 * we just need arg1 and arg3 for BL31 to update the TL from S
 		 * to NS memory before it exits
 		 */
-		bl_mem_params->ep_info.args.arg1 =
-			TRANSFER_LIST_SIGNATURE |
-			REGISTER_CONVENTION_VERSION_MASK;
+#ifdef __aarch64__
+		if (GET_RW(bl_mem_params->ep_info.spsr) == MODE_RW_64) {
+			bl_mem_params->ep_info.args.arg1 =
+				TRANSFER_LIST_HANDOFF_X1_VALUE(REGISTER_CONVENTION_VERSION);
+		} else
+#endif
+		{
+			bl_mem_params->ep_info.args.arg1 =
+				TRANSFER_LIST_HANDOFF_R1_VALUE(REGISTER_CONVENTION_VERSION);
+		}
+
 		bl_mem_params->ep_info.args.arg3 = (uintptr_t)bl2_tl;
 		break;
 #endif
@@ -388,11 +346,11 @@ static int qemu_bl2_handle_post_image_load(unsigned int image_id)
 
 		INFO("Handoff to BL32\n");
 		bl_mem_params->ep_info.spsr = qemu_get_spsr_for_bl32_entry();
-		if (TRANSFER_LIST &&
-			transfer_list_set_handoff_args(bl2_tl,
-				&bl_mem_params->ep_info))
+#if TRANSFER_LIST
+		if (transfer_list_set_handoff_args(bl2_tl,
+						   &bl_mem_params->ep_info))
 			break;
-
+#endif
 		INFO("Using default arguments\n");
 #if defined(SPMC_OPTEE)
 		/*

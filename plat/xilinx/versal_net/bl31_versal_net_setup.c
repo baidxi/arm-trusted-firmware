@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2018-2020, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2018-2024, Arm Limited and Contributors. All rights reserved.
  * Copyright (c) 2018-2022, Xilinx, Inc. All rights reserved.
- * Copyright (c) 2022-2023, Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Advanced Micro Devices, Inc. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -55,8 +55,22 @@ static inline void bl31_set_default_config(void)
 	bl32_image_ep_info.pc = BL32_BASE;
 	bl32_image_ep_info.spsr = arm_get_spsr_for_bl32_entry();
 	bl33_image_ep_info.pc = plat_get_ns_image_entrypoint();
-	bl33_image_ep_info.spsr = SPSR_64(MODE_EL2, MODE_SP_ELX,
+	bl33_image_ep_info.spsr = (uint32_t)SPSR_64(MODE_EL2, MODE_SP_ELX,
 					DISABLE_ALL_EXCEPTIONS);
+}
+
+/* Define read and write function for clusterbusqos register */
+DEFINE_RENAME_SYSREG_RW_FUNCS(cluster_bus_qos, S3_0_C15_C4_4)
+
+static void versal_net_setup_qos(void)
+{
+	int ret;
+
+	ret = read_cluster_bus_qos();
+	INFO("BL31: default cluster bus qos: 0x%x\n", ret);
+	write_cluster_bus_qos(0);
+	ret = read_cluster_bus_qos();
+	INFO("BL31: cluster bus qos written: 0x%x\n", ret);
 }
 
 /*
@@ -68,6 +82,11 @@ static inline void bl31_set_default_config(void)
 void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 				u_register_t arg2, u_register_t arg3)
 {
+	(void)arg0;
+	(void)arg1;
+	(void)arg2;
+	(void)arg3;
+
 #if !(TFA_NO_PM)
 	uint64_t tfa_handoff_addr, buff[HANDOFF_PARAMS_MAX_SIZE] = {0};
 	uint32_t payload[PAYLOAD_ARG_CNT], max_size = HANDOFF_PARAMS_MAX_SIZE;
@@ -98,13 +117,16 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 
 	set_cnt_freq();
 
+	/* Initialize the platform config for future decision making */
+	versal_net_config_setup();
+
 	setup_console();
 
 	NOTICE("TF-A running on %s %d.%d\n", board_name_decode(),
 	       platform_version / 10U, platform_version % 10U);
 
-	/* Initialize the platform config for future decision making */
-	versal_net_config_setup();
+	versal_net_setup_qos();
+
 
 	/*
 	 * Do initial security configuration to allow DRAM/device access. On
@@ -119,7 +141,7 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	SET_PARAM_HEAD(&bl33_image_ep_info, PARAM_EP, VERSION_1, 0);
 	SET_SECURITY_STATE(bl33_image_ep_info.h.attr, NON_SECURE);
 #if !(TFA_NO_PM)
-	PM_PACK_PAYLOAD4(payload, LOADER_MODULE_ID, 1, PM_LOAD_GET_HANDOFF_PARAMS,
+	PM_PACK_PAYLOAD4(payload, LOADER_MODULE_ID, 1U, PM_LOAD_GET_HANDOFF_PARAMS,
 			 (uintptr_t)buff >> 32U, (uintptr_t)buff, max_size);
 
 	ret_status = pm_ipi_send_sync(primary_proc, payload, NULL, 0);
@@ -137,18 +159,6 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 
 		INFO("BL31: PLM to TF-A handover success\n");
 
-		/*
-		 * The BL32 load address is indicated as 0x0 in the handoff
-		 * parameters, which is different from the default/user-provided
-		 * load address of 0x60000000 but the flags are correctly
-		 * configured. Consequently, in this scenario, set the PC
-		 * to the requested BL32_BASE address.
-		 */
-
-		/* TODO: Remove the following check once this is fixed from PLM */
-		if (bl32_image_ep_info.pc == 0 && bl32_image_ep_info.spsr != 0) {
-			bl32_image_ep_info.pc = (uintptr_t)BL32_BASE;
-		}
 	} else {
 		INFO("BL31: setting up default configs\n");
 
@@ -168,16 +178,19 @@ int request_intr_type_el3(uint32_t id, interrupt_type_handler_t handler)
 {
 	static uint32_t index;
 	uint32_t i;
+	int32_t ret = 0;
 
 	/* Validate 'handler' and 'id' parameters */
-	if (handler == NULL || index >= MAX_INTR_EL3) {
-		return -EINVAL;
+	if ((handler == NULL) || (index >= MAX_INTR_EL3)) {
+		ret = -EINVAL;
+		goto exit_label;
 	}
 
 	/* Check if a handler has already been registered */
 	for (i = 0; i < index; i++) {
 		if (id == type_el3_interrupt_table[i].id) {
-			return -EALREADY;
+			ret = -EALREADY;
+			goto exit_label;
 		}
 	}
 
@@ -186,17 +199,32 @@ int request_intr_type_el3(uint32_t id, interrupt_type_handler_t handler)
 
 	index++;
 
-	return 0;
+exit_label:
+	return ret;
 }
 
+#if SDEI_SUPPORT
+static int rdo_el3_interrupt_handler(uint32_t id, uint32_t flags,
+				     void *handle, void *cookie)
+#else
 static uint64_t rdo_el3_interrupt_handler(uint32_t id, uint32_t flags,
 					  void *handle, void *cookie)
+#endif
 {
 	uint32_t intr_id;
 	uint32_t i;
 	interrupt_type_handler_t handler = NULL;
 
+#if SDEI_SUPPORT
+	/* when SDEI_SUPPORT is enabled, ehf_el3_interrupt_handler
+	 * reads the interrupt id prior to calling the
+	 * rdo_el3_interrupt_handler and passes that id to the
+	 * handler.
+	 */
+	intr_id = id;
+#else
 	intr_id = plat_ic_get_pending_interrupt_id();
+#endif
 
 	for (i = 0; i < MAX_INTR_EL3; i++) {
 		if (intr_id == type_el3_interrupt_table[i].id) {
@@ -205,7 +233,7 @@ static uint64_t rdo_el3_interrupt_handler(uint32_t id, uint32_t flags,
 	}
 
 	if (handler != NULL) {
-		handler(intr_id, flags, handle, cookie);
+		(void)handler(intr_id, flags, handle, cookie);
 	}
 
 	return 0;
@@ -222,6 +250,7 @@ void bl31_platform_setup(void)
 
 void bl31_plat_runtime_setup(void)
 {
+#if !SDEI_SUPPORT
 	uint64_t flags = 0;
 	int32_t rc;
 
@@ -231,8 +260,9 @@ void bl31_plat_runtime_setup(void)
 	if (rc != 0) {
 		panic();
 	}
-
-	console_switch_state(CONSOLE_FLAG_RUNTIME);
+#else
+	ehf_register_priority_handler(PLAT_IPI_PRI, rdo_el3_interrupt_handler);
+#endif
 }
 
 /*
